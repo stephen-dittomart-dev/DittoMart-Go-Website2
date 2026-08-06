@@ -5,7 +5,7 @@ import { ArrowRight, Terminal } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRef } from "react";
-import future from "@/assets/future.png";
+import { media } from "@/lib/media";
 import { SplitHeading } from "@/components/motion/split-heading";
 import { Button } from "@/components/ui/button";
 import { useMagnetic } from "@/hooks/use-motion";
@@ -141,13 +141,13 @@ export function Hero({ ready = true }: { ready?: boolean }) {
               className="absolute inset-0 will-change-transform"
             >
               <Image
-                src={future}
+                src={media.hero.src}
                 alt=""
                 fill
                 priority
                 sizes="100vw"
                 placeholder="blur"
-                className="scale-[1.06] object-cover object-[50%_70%]"
+                className="scale-[1.06] object-cover object-[52%_58%]"
               />
             </div>
 

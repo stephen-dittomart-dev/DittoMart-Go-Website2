@@ -3,15 +3,15 @@
 import { useGSAP } from "@gsap/react";
 import Image, { type StaticImageData } from "next/image";
 import { useRef, useState } from "react";
-import threePl from "@/assets/3PL.png";
-import detectionAI from "@/assets/detectionAI.png";
-import engine from "@/assets/engine.png";
-import fssai from "@/assets/fssai.png";
-import globalLogistics from "@/assets/globalLogistics.png";
-import ondc from "@/assets/ondc-buyer-seller.png";
-import peakDemand from "@/assets/peakDemand.png";
-import riderApp from "@/assets/riderApp.png";
-import voiceAssist from "@/assets/voiceAssist.png";
+import aiRouting from "@/assets/new/AI.png";
+import bike from "@/assets/new/bike.png";
+import deliverybox from "@/assets/new/deliverybox.png";
+import logisticDepot from "@/assets/new/logistic1.png";
+import ondcMap from "@/assets/new/map.png";
+import ondcTruck from "@/assets/new/ONDCTruck.png";
+import riderStreet from "@/assets/new/riderimg.png";
+import scan from "@/assets/new/scan.png";
+import threePl from "@/assets/new/3pl.png";
 import { SplitHeading } from "@/components/motion/split-heading";
 import {
   EASE,
@@ -42,16 +42,22 @@ import { cn } from "@/lib/utils";
  *    anything moving, and a broken pin on a phone is far worse than no pin.
  */
 
+/**
+ * One plate per network, all photographic. The nine images are the real
+ * subjects — a sortation floor, a rider in traffic, an ONDC hub, a scan at
+ * the dock — which is what makes the burst feel like the network coming
+ * apart rather than nine icons flying off.
+ */
 const ART: StaticImageData[] = [
   threePl,
-  globalLogistics,
-  riderApp,
-  peakDemand,
-  detectionAI,
-  engine,
-  fssai,
-  voiceAssist,
-  ondc,
+  logisticDepot,
+  riderStreet,
+  bike,
+  scan,
+  deliverybox,
+  aiRouting,
+  ondcTruck,
+  ondcMap,
 ];
 
 /** Even radial spread, nudged outward so nothing lands behind the copy. */
@@ -178,15 +184,23 @@ export function NetworkBurst() {
             <div
               key={i}
               data-burst-plate
-              className="absolute h-[26vh] w-[22vw] overflow-hidden rounded-2xl border border-line bg-[#f2ede5] shadow-e3 will-change-transform"
+              className="absolute h-[26vh] w-[22vw] overflow-hidden rounded-2xl border border-white/12 bg-[#0d0a08] shadow-e3 will-change-transform"
             >
               <Image
                 src={src}
                 alt=""
                 fill
-                sizes="22vw"
+                /* Each plate is 22vw and the burst is desktop-only, so cap the
+                   requested variant rather than letting the browser reach for
+                   a 1920px encode of a plate that is never wider than ~420px. */
+                sizes="(max-width: 1023px) 0px, 24vw"
+                quality={68}
                 placeholder="blur"
-                className="object-cover mix-blend-multiply"
+                className="object-cover"
+              />
+              <span
+                aria-hidden
+                className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.1),transparent_40%,rgba(0,0,0,0.4))]"
               />
             </div>
           ))}

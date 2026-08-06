@@ -27,9 +27,7 @@ export function OndcChapter() {
         }
         media={
           <MediaPlate
-            src={media.ondc.src}
-            alt={media.ondc.alt}
-            caption={media.ondc.caption}
+            entry={media.ondc}
             glow="accent"
           />
         }

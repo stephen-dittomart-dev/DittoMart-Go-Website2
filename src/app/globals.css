@@ -711,24 +711,6 @@ html.theme-dark {
   perspective-origin: 50% 40%;
 }
 
-/* Conic sweep used on the highest-emphasis cards */
-@keyframes dm-conic {
-  to {
-    --conic-angle: 360deg;
-  }
-}
-
-@property --conic-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@utility ring-sweep {
-  position: relative;
-  isolation: isolate;
-}
-
 /* ---------- Reduced motion --------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   html {

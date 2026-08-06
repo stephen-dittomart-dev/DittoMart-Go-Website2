@@ -3,7 +3,7 @@
 import { useGSAP } from "@gsap/react";
 import Image from "next/image";
 import { useRef } from "react";
-import ecosystem from "@/assets/DittoMart.png";
+import { media } from "@/lib/media";
 import { SplitHeading } from "@/components/motion/split-heading";
 import { EASE, gsap, prefersReducedMotion, registerGsap } from "@/lib/motion";
 
@@ -93,8 +93,8 @@ export function Ecosystem() {
       <div className="absolute inset-0">
         <div data-eco="art" className="relative size-full will-change-transform">
           <Image
-            src={ecosystem}
-            alt="The DittoMart Go ecosystem: 3PL providers including Rapido and Ola, local agencies and retail shops all connected through the DittoMart Go hub."
+            src={media.ecosystem.src}
+            alt={media.ecosystem.alt}
             fill
             sizes="100vw"
             placeholder="blur"

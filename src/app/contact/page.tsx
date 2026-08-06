@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/layout/page-hero";
 import { Scene } from "@/components/motion/color-scene";
+import { MediaPlate } from "@/components/motion/scene";
 import { ContactForm } from "@/components/sections/contact-form";
 import { ContactDetails, ContactRoutes } from "@/components/sections/contact-parts";
 import { Section } from "@/components/ui/primitives";
+import { media } from "@/lib/media";
 import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -27,7 +29,16 @@ export default function ContactPage() {
             { label: "Response time", value: "1 business day" },
             { label: "Based in", value: site.city },
           ]}
-        />
+        >
+          <MediaPlate
+            entry={media.partner}
+            aspect="wide"
+            motion="slide"
+            className="mx-auto max-w-3xl"
+            sizes="(max-width: 1024px) 92vw, 48rem"
+            priority
+          />
+        </PageHero>
       </Scene>
 
       <Scene scene="bone" padded={false} sweep="none">

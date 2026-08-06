@@ -53,7 +53,24 @@ export function PageEnter({ children }: { children: ReactNode }) {
           // Drop every inline style so nothing is left holding a containing
           // block over the pinned sections below.
           gsap.set(el, { clearProps: "all" });
-          ScrollTrigger.refresh();
+
+          /*
+           * Deferred, not immediate.
+           *
+           * refresh() re-measures every ScrollTrigger on the page, and the
+           * heavier routes here register dozens. Running it the instant the
+           * entrance finishes puts that work on the critical path while the
+           * browser is still decoding images — and because those images then
+           * shift the layout, the measurements it just took are stale anyway.
+           * Waiting for idle costs nothing visually and takes the cost off
+           * the navigation.
+           */
+          const refresh = () => ScrollTrigger.refresh();
+          if (typeof window.requestIdleCallback === "function") {
+            window.requestIdleCallback(refresh, { timeout: 1200 });
+          } else {
+            window.setTimeout(refresh, 300);
+          }
         },
       });
 

@@ -59,9 +59,7 @@ export function WalletChapter() {
         eyebrow={<Eyebrow>Wallet engine</Eyebrow>}
         media={
           <MediaPlate
-            src={media.wallet.src}
-            alt={media.wallet.alt}
-            caption={media.wallet.caption}
+            entry={media.wallet}
             glow="primary"
             motion="jump"
             spin
@@ -115,9 +113,7 @@ export function EnginesChapter() {
       eyebrow={<Eyebrow>Tariff &amp; trigger</Eyebrow>}
       media={
         <MediaPlate
-          src={media.engines.src}
-          alt={media.engines.alt}
-          caption={media.engines.caption}
+          entry={media.engines}
           glow="accent"
             motion="rotate"
             spin
@@ -157,9 +153,7 @@ export function AgencyChapter() {
       eyebrow={<Eyebrow>Direct agency</Eyebrow>}
       media={
         <MediaPlate
-          src={media.agencyFleet.src}
-          alt={media.agencyFleet.alt}
-          caption={media.agencyFleet.caption}
+          entry={media.agencyFleet}
           glow="accent"
             motion="unfold"
         />
@@ -206,9 +200,7 @@ export function ColdChainChapter() {
         }
         media={
           <MediaPlate
-            src={media.coldChain.src}
-            alt={media.coldChain.alt}
-            caption={media.coldChain.caption}
+            entry={media.coldChain}
             glow="accent"
             motion="swing"
           />
@@ -258,9 +250,7 @@ export function RiderChapter() {
       eyebrow={<Eyebrow>Rider compliance</Eyebrow>}
       media={
         <MediaPlate
-          src={media.riderCompliance.src}
-          alt={media.riderCompliance.alt}
-          caption={media.riderCompliance.caption}
+          entry={media.riderCompliance}
           glow="ai"
             motion="slide"
         />
@@ -307,9 +297,7 @@ export function AnalyticsChapter() {
       }
       media={
         <MediaPlate
-          src={media.analytics.src}
-          alt={media.analytics.alt}
-          caption={media.analytics.caption}
+          entry={media.analytics}
           glow="ai"
             motion="zoom"
             spin
@@ -350,9 +338,7 @@ export function ApiChapter() {
       eyebrow={<Eyebrow>API architecture</Eyebrow>}
       media={
         <MediaPlate
-          src={media.apiGateway.src}
-          alt={media.apiGateway.alt}
-          caption={media.apiGateway.caption}
+          entry={media.apiGateway}
           glow="primary"
             motion="flip"
         />

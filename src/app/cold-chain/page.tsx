@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/layout/page-hero";
 import { Scene } from "@/components/motion/color-scene";
-import { MediaPlate } from "@/components/motion/scene";
+import { Chapter, MediaPlate } from "@/components/motion/scene";
+import { Eyebrow } from "@/components/ui/primitives";
 import { ColdChainChapter } from "@/components/sections/chapters";
 import { ColdChain } from "@/components/sections/cold-chain";
 import { ColdChainProtocol } from "@/components/sections/cold-chain-protocol";
@@ -34,9 +35,7 @@ export default function ColdChainPage() {
           ]}
         >
           <MediaPlate
-            src={media.coldChain.src}
-            alt={media.coldChain.alt}
-            caption={media.coldChain.caption}
+            entry={media.coldChain}
             glow="accent"
             className="mx-auto max-w-2xl"
             sizes="(max-width: 1024px) 92vw, 42rem"
@@ -52,6 +51,25 @@ export default function ColdChainPage() {
 
       <Scene scene="olive" padded={false} sweep="none">
         <ColdChainChapter />
+      </Scene>
+
+      <Scene scene="crimson" padded={false} sweep="none">
+        <Chapter
+          id="handover"
+          flip
+          eyebrow={<Eyebrow>The handover</Eyebrow>}
+          media={<MediaPlate entry={media.coldHandover} motion="slide" aspect="wide" />}
+        >
+          <h2 className="mt-6 text-3xl font-semibold leading-[1.08] tracking-[-0.03em] md:text-4xl">
+            The last thirty seconds are the ones that get disputed
+          </h2>
+          <p className="mt-5 text-base leading-relaxed text-fg-muted md:text-lg">
+            Everything upstream is preparation for this moment. The rider
+            confirms the temperature class on the checklist, captures the
+            handover, and the OTP closes the order — so a cold-chain claim is
+            settled by evidence rather than by argument.
+          </p>
+        </Chapter>
       </Scene>
 
       <Scene scene="sand" padded={false} sweep="none">

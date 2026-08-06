@@ -5,6 +5,7 @@
   "description": "DittoMart Go — B2B Delivery-as-a-Service platform. Corporate website.",
   "scripts": {
     "dev": "next dev",
+    "dev:turbo": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

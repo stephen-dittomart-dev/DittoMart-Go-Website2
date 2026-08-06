@@ -95,19 +95,34 @@ const PLATE_MOTION: Record<
 };
 
 export function MediaPlate({
-  src,
-  alt,
-  caption,
+  entry,
+  src: srcProp,
+  alt: altProp,
+  caption: captionProp,
   className,
   priority = false,
   parallax = 34,
   glow = "primary",
   motion = "rotate",
   spin = false,
+  variant: variantProp,
+  aspect = "square",
   sizes = "(max-width: 1024px) 92vw, 46vw",
 }: {
-  src: StaticImageData;
-  alt: string;
+  /**
+   * Preferred form — pass the whole manifest entry and the plate takes its
+   * source, alt text, caption and framing from it. That keeps the "is this a
+   * photograph or a render" decision in one place instead of being repeated,
+   * and occasionally forgotten, at every call site.
+   */
+  entry?: {
+    src: StaticImageData;
+    alt: string;
+    caption: string;
+    variant: "render" | "photo";
+  };
+  src?: StaticImageData;
+  alt?: string;
   caption?: string;
   className?: string;
   priority?: boolean;
@@ -116,8 +131,22 @@ export function MediaPlate({
   motion?: PlateMotion;
   /** Adds a slow continuous scroll-linked rotation to the render itself. */
   spin?: boolean;
+  /**
+   * `render` — a white-background illustration, multiplied into a warm plate.
+   * `photo`  — a full-bleed photograph, shown untouched on a dark frame.
+   *
+   * These need genuinely different treatment. Multiplying a photograph into
+   * a sand plate turns it to mud, and dropping a white-background render onto
+   * a dark frame leaves a white rectangle floating on the page.
+   */
+  variant?: "render" | "photo";
+  aspect?: "square" | "wide" | "portrait";
   sizes?: string;
 }) {
+  const src = entry?.src ?? srcProp;
+  const alt = entry?.alt ?? altProp ?? "";
+  const caption = captionProp ?? entry?.caption;
+  const isPhoto = (variantProp ?? entry?.variant ?? "render") === "photo";
   const root = useRef<HTMLDivElement>(null);
 
   useGSAP(
@@ -127,7 +156,7 @@ export function MediaPlate({
       if (!el) return;
       const img = el.querySelector("[data-plate-img]");
       const plate = el.querySelector("[data-plate]");
-      if (!img || !plate) return;
+      if (!img || !plate || !src) return;
 
       if (prefersReducedMotion()) {
         gsap.set(plate, { opacity: 1, clearProps: "transform" });
@@ -181,6 +210,8 @@ export function MediaPlate({
   const glowVar =
     glow === "accent" ? "var(--spot-2)" : glow === "ai" ? "var(--spot-3)" : "var(--spot-1)";
 
+  if (!src) return null;
+
   return (
     <div ref={root} className={cn("relative [perspective:1400px]", className)}>
       <div
@@ -193,9 +224,23 @@ export function MediaPlate({
 
       <figure
         data-plate
-        className="relative overflow-hidden rounded-3xl border border-line bg-[#f2ede5] shadow-e3 [transform-style:preserve-3d]"
+        className={cn(
+          "relative overflow-hidden rounded-3xl border shadow-e3 [transform-style:preserve-3d]",
+          isPhoto
+            ? "border-white/12 bg-[#0d0a08]"
+            : "border-line bg-[#f2ede5]"
+        )}
       >
-        <div className="relative aspect-square w-full overflow-hidden">
+        <div
+          className={cn(
+            "relative w-full overflow-hidden",
+            aspect === "wide"
+              ? "aspect-[16/10]"
+              : aspect === "portrait"
+                ? "aspect-[4/5]"
+                : "aspect-square"
+          )}
+        >
           <Image
             data-plate-img
             src={src}
@@ -203,24 +248,51 @@ export function MediaPlate({
             fill
             sizes={sizes}
             priority={priority}
+            /* Photographs carry detail that survives compression far better
+               than flat illustration does, so they can afford a lower quality
+               setting — and on a page holding a dozen of them that is the
+               difference between a fast first paint and a slow one. */
+            quality={isPhoto ? 68 : 80}
             placeholder="blur"
-            /* The renders ship on white. Multiply drops that white straight
-               into the warm plate, so they read as printed on it rather than
-               as a white card pasted over the page. */
-            className="object-cover mix-blend-multiply will-change-transform"
+            className={cn(
+              "object-cover will-change-transform",
+              !isPhoto && "mix-blend-multiply"
+            )}
           />
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,transparent_40%,rgba(60,45,30,0.08))]"
+            className={cn(
+              "pointer-events-none absolute inset-0",
+              isPhoto
+                ? "bg-[linear-gradient(180deg,rgba(0,0,0,0.12),transparent_35%,rgba(0,0,0,0.35))]"
+                : "bg-[radial-gradient(circle_at_30%_20%,transparent_40%,rgba(60,45,30,0.08))]"
+            )}
           />
         </div>
 
         {caption ? (
-          <figcaption className="flex items-center justify-between gap-3 border-t border-line bg-[#ece5da] px-5 py-3.5">
-            <span className="font-mono text-2xs uppercase tracking-[0.14em] text-[#574e45]">
+          <figcaption
+            className={cn(
+              "flex items-center justify-between gap-3 border-t px-5 py-3.5",
+              isPhoto
+                ? "border-white/10 bg-[#151110]"
+                : "border-line bg-[#ece5da]"
+            )}
+          >
+            <span
+              className={cn(
+                "font-mono text-2xs uppercase tracking-[0.14em]",
+                isPhoto ? "text-white/65" : "text-[#574e45]"
+              )}
+            >
               {caption}
             </span>
-            <span className="flex items-center gap-1.5 font-mono text-2xs text-[#7c7166]">
+            <span
+              className={cn(
+                "flex items-center gap-1.5 font-mono text-2xs",
+                isPhoto ? "text-white/40" : "text-[#7c7166]"
+              )}
+            >
               <span className="size-1.5 animate-breathe rounded-full bg-[#e04e0f]" />
               LIVE
             </span>

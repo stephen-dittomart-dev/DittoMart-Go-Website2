@@ -50,9 +50,7 @@ export default function DevelopersPage() {
             </div>
             <div className="lg:col-span-5">
               <MediaPlate
-                src={media.apiGateway.src}
-                alt={media.apiGateway.alt}
-                caption={media.apiGateway.caption}
+                entry={media.apiGateway}
                 sizes="(max-width: 1024px) 92vw, 30rem"
                 motion="flip"
                 priority

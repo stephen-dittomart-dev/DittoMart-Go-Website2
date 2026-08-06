@@ -37,9 +37,7 @@ export default function NetworkPage() {
           ]}
         >
           <MediaPlate
-            src={media.ondc.src}
-            alt={media.ondc.alt}
-            caption={media.ondc.caption}
+            entry={media.ondc}
             glow="accent"
             className="mx-auto max-w-2xl"
             sizes="(max-width: 1024px) 92vw, 42rem"

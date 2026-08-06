@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/layout/page-hero";
 import { Scene } from "@/components/motion/color-scene";
-import { MediaPlate } from "@/components/motion/scene";
+import { Chapter, MediaPlate } from "@/components/motion/scene";
+import { Eyebrow } from "@/components/ui/primitives";
 import {
   AnalyticsChapter,
   ApiChapter,
@@ -53,9 +54,7 @@ export default function PlatformPage() {
           ]}
         >
           <MediaPlate
-            src={media.engines.src}
-            alt={media.engines.alt}
-            caption={media.engines.caption}
+            entry={media.engines}
             className="mx-auto max-w-2xl"
             sizes="(max-width: 1024px) 92vw, 42rem"
             motion="rotate"
@@ -96,6 +95,22 @@ export default function PlatformPage() {
 
       <Scene scene="slate" padded={false} sweep="none">
         <Control />
+        <Chapter
+          id="ops-team"
+          flip
+          eyebrow={<Eyebrow>Who watches it</Eyebrow>}
+          media={<MediaPlate entry={media.operations} motion="unfold" aspect="wide" />}
+        >
+          <h2 className="mt-6 text-3xl font-semibold leading-[1.08] tracking-[-0.03em] md:text-4xl">
+            A console is only as good as the people reading it
+          </h2>
+          <p className="mt-5 text-base leading-relaxed text-fg-muted md:text-lg">
+            Route reviews, peak-hour planning, provider scorecards and the
+            exception queues — our operations team works the same board you do,
+            which is why the alarms are tuned for someone who has to act on them
+            rather than someone admiring a dashboard.
+          </p>
+        </Chapter>
       </Scene>
 
       <OperationsFilm />
