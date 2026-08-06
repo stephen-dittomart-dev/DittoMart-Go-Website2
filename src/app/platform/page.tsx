@@ -55,13 +55,7 @@ export default function PlatformPage() {
             { label: "Decision time", value: "<1s" },
           ]}
           visual={<EnginePipelineScene />}
-        >
-          <MediaPlate
-            entry={media.engines}
-            motion="rotate"
-            priority
-          />
-        </PageHero>
+        />
       </Scene>
 
       <Scene scene="sand" padded={false} sweep="none">

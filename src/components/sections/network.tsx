@@ -2,6 +2,7 @@
 
 import { useGSAP } from "@gsap/react";
 import { ArrowRight, Box, Check } from "lucide-react";
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { useRef } from "react";
 import { Marquee, Spotlight } from "@/components/motion/interactions";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, Card, Eyebrow, Section } from "@/components/ui/primitives";
 import { getIcon } from "@/lib/icon-registry";
 import { EASE, gsap, prefersReducedMotion, registerGsap } from "@/lib/motion";
+import { networkMarks } from "@/lib/network-marks";
 import { providers, providerStats } from "@/lib/providers";
 import { cn } from "@/lib/utils";
 
@@ -127,16 +129,91 @@ export function NetworkStory() {
                       {p.coverage}
                     </span>
                   </div>
+
+                  {/*
+                    The partner's own mark, arriving from the left under the
+                    rail line.
+
+                    It is deliberately a beat behind the copy above it — the
+                    narrator block runs `dm-step-in` on mount and this waits
+                    260ms — so the reader gets the name first and the logo as
+                    confirmation, rather than both landing on top of each
+                    other.
+
+                    A white plate and `object-contain`: these marks arrive in
+                    wildly different shapes, and several carry a cream
+                    background baked into the file. On the page's own surface
+                    half of them would sit in a pale rectangle of the wrong
+                    colour; on white, all nine look intended.
+
+                    The whole narrator is keyed by provider id in
+                    `StickyStory`, so this subtree genuinely remounts on every
+                    change — which is what lets a plain CSS animation replay.
+                    Without that key it would run once and never again.
+                  */}
+                  {networkMarks[p.id] ? (
+                    <div
+                      className="mt-8 inline-block"
+                      style={{
+                        animation:
+                          "dm-slide-in-left 620ms var(--ease-out-expo) 260ms both",
+                      }}
+                    >
+                      <PartnerMark src={networkMarks[p.id]} />
+                    </div>
+                  ) : null}
                 </div>
               ),
               panel: (
                 <Card
                   className={cn(
-                    "p-7 transition-colors duration-500 md:p-8 lg:flex lg:min-h-[54vh] lg:flex-col lg:justify-center",
+                    "overflow-hidden p-7 transition-colors duration-500 md:p-8 lg:flex lg:min-h-[54vh] lg:flex-col lg:justify-center",
                     "group hover:border-primary-border"
                   )}
                 >
-                  <div className="flex items-center justify-between gap-4">
+                  {/*
+                    Three quiet layers, and no more.
+
+                    The panel was a flat surface with a list on it, which read
+                    as a form rather than as a card worth looking at. What is
+                    added here is only ever behind the text: a hairline grid
+                    for texture, one warm corner light so the surface has a
+                    direction, and the partner's index set enormous and nearly
+                    invisible in the corner.
+
+                    Everything is under 8% opacity. The temptation with a
+                    panel like this is to add a gradient, a pattern, a badge
+                    and a glow until the content is competing with its own
+                    background — this stops at the point where you can feel
+                    the depth but cannot name what is producing it.
+                  */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 opacity-[0.5]"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px)",
+                      backgroundSize: "34px 34px",
+                      maskImage:
+                        "radial-gradient(ellipse 70% 60% at 80% 0%, #000, transparent 70%)",
+                    }}
+                  />
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -right-1/4 -top-1/3 aspect-square w-[120%] rounded-full opacity-[0.55] blur-3xl transition-opacity duration-500 group-hover:opacity-90"
+                    style={{
+                      background:
+                        "radial-gradient(closest-side, var(--spot-1), transparent 72%)",
+                    }}
+                  />
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -bottom-6 -left-2 select-none font-mono text-[9rem] font-bold leading-none tracking-tighter text-fg opacity-[0.035]"
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+
+                  <div className="relative flex items-center justify-between gap-4">
                     <span className="flex size-10 items-center justify-center rounded-xl border border-line bg-surface-2 text-fg-muted transition-colors duration-500 group-hover:border-primary-border group-hover:bg-primary-soft group-hover:text-primary">
                       <Icon aria-hidden className="size-[18px]" />
                     </span>
@@ -145,11 +222,11 @@ export function NetworkStory() {
                     </span>
                   </div>
 
-                  <h4 className="mt-6 text-lg font-medium tracking-[-0.015em]">
+                  <h4 className="relative mt-6 text-lg font-medium tracking-[-0.015em]">
                     {p.name}
                   </h4>
 
-                  <ul className="mt-5 flex flex-col gap-3">
+                  <ul className="relative mt-5 flex flex-col gap-3">
                     {p.strengths.map((s) => (
                       <li key={s} className="flex items-start gap-2.5">
                         <Check
@@ -164,7 +241,7 @@ export function NetworkStory() {
                     ))}
                   </ul>
 
-                  <div className="mt-6 rounded-xl border border-line bg-surface-2/60 px-4 py-3">
+                  <div className="relative mt-6 rounded-xl border border-line bg-surface-2/70 px-4 py-3 backdrop-blur-sm">
                     <p className="font-mono text-2xs uppercase tracking-[0.12em] text-fg-subtle">
                       Routed here when
                     </p>
@@ -284,5 +361,81 @@ export function NetworkGrid() {
         </div>
       </div>
     </Section>
+  );
+}
+
+/**
+ * The partner's mark, inside a ring of light that never stops turning.
+ *
+ * The border is a conic gradient on a square element twice the plate's width,
+ * spun by a plain CSS rotation and clipped by the parent's `overflow-hidden`.
+ * That is the only version of this effect that stays smooth: it animates one
+ * `transform` on one element, so it composites on the GPU and costs nothing
+ * per frame. Animating a `border-image`, or a gradient's colour stops, or a
+ * `background-position`, all repaint the element every frame instead.
+ *
+ * The conic runs mostly transparent with a short lit arc, so what travels the
+ * edge reads as a highlight sweeping round rather than the whole border
+ * changing colour. Underneath it a blurred copy of the same gradient throws a
+ * soft glow onto the page — the ring alone looks pasted on.
+ *
+ * `p-px` on the frame is the border width. Any more and the conic reads as a
+ * coloured band; any less and it disappears on a low-DPI screen.
+ */
+function PartnerMark({ src }: { src: StaticImageData }) {
+  const conic =
+    "conic-gradient(from 0deg, transparent 0 52%, rgba(251,128,56,0.35) 62%, #fb8038 74%, #ffc247 82%, #5bd9cb 90%, transparent 97%)";
+
+  return (
+    <span className="relative inline-block">
+      {/* the glow it casts */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -inset-3 rounded-[26px] opacity-60 blur-xl"
+      >
+        <span
+          className="absolute left-1/2 top-1/2 aspect-square w-[190%] -translate-x-1/2 -translate-y-1/2 animate-[dm-spin-slow_5.5s_linear_infinite]"
+          style={{ background: conic }}
+        />
+      </span>
+
+      {/* the ring */}
+      <span className="relative block overflow-hidden rounded-[20px] p-px">
+        <span
+          aria-hidden
+          className="absolute left-1/2 top-1/2 aspect-square w-[190%] -translate-x-1/2 -translate-y-1/2 animate-[dm-spin-slow_5.5s_linear_infinite]"
+          style={{ background: conic }}
+        />
+        {/* a base ring so the unlit three-quarters is not simply nothing */}
+        <span
+          aria-hidden
+          className="absolute inset-0 rounded-[20px] border border-line"
+        />
+
+        <span className="relative flex items-center gap-4 rounded-[19px] bg-white py-3.5 pl-4 pr-5 shadow-e1">
+          <span className="media-zoom relative block h-16 w-36 shrink-0 rounded-md">
+            <span data-zoom className="absolute inset-0 block">
+              <Image
+                src={src}
+                alt=""
+                fill
+                sizes="144px"
+                quality={84}
+                className="object-contain"
+              />
+            </span>
+          </span>
+          <span className="flex flex-col gap-1 border-l border-black/10 pl-4">
+            <span className="font-mono text-2xs uppercase tracking-[0.18em] text-[#a0968a]">
+              Partner
+            </span>
+            <span className="flex items-center gap-1.5 font-mono text-2xs text-[#3a322b]">
+              <span className="size-1.5 animate-breathe rounded-full bg-[#e04e0f]" />
+              Contracted
+            </span>
+          </span>
+        </span>
+      </span>
+    </span>
   );
 }

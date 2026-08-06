@@ -36,14 +36,7 @@ export default function ColdChainPage() {
             { label: "Unverifiable handovers", value: "0" },
           ]}
           visual={<ColdTraceScene />}
-        >
-          <MediaPlate
-            entry={media.coldChain}
-            glow="accent"
-            motion="swing"
-            priority
-          />
-        </PageHero>
+        />
       </Scene>
 
       <Scene scene="bone" padded={false} sweep="none">

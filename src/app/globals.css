@@ -702,6 +702,116 @@ html.theme-dark {
   }
 }
 
+/*
+  A seamless horizontal drift for the wave field.
+
+  The paths it moves carry exactly two periods across their viewBox, so
+  translating by half the element's width lands the second period precisely
+  where the first started — the loop has no seam and needs no crossfade.
+*/
+/* ==========================================================================
+   Media hover — one behaviour, defined once.
+
+   `.media-zoom` goes on the element that clips, and `data-zoom` on a plain
+   wrapper *around* the image inside it — never on the image itself.
+
+   That wrapper is the whole point, and it took two attempts to get right.
+   Several of these images are driven by GSAP: the plate parallax, the flying
+   network marks, the ecosystem pan. GSAP writes `transform` inline on those
+   images, and an inline style beats a stylesheet, so hovering could never
+   move them. Animating the independent `scale` property instead composes
+   rather than collides — but it is one more thing to be right about, and it
+   still leaves the hover and the scroll animation arguing over the same
+   element. An empty wrapper that nothing else touches has neither problem:
+   CSS owns the wrapper's `transform`, GSAP owns the image's, and the two
+   never meet.
+
+   Three more decisions worth recording:
+
+   · No `isolation: isolate` here. It would be tidy, but the illustrated
+     plates use `mix-blend-multiply` to sit on their cream backing, and
+     isolating the clipper cuts them off from the thing they are blending
+     with — the renders would go from printed on the plate to pasted on it.
+
+   · The sheen carries a light band *and* a faint dark one. A white-only
+     shimmer is invisible crossing the white plates the partner logos sit on;
+     the dark edge is what makes the same rule read on both.
+
+   · The sheen is a transition, not an animation. A keyframe animation only
+     plays forwards: leaving the image would either snap the sheen back to the
+     start or strand it wherever it stopped. A transition between two states
+     runs the same path in reverse the moment the pointer leaves, which is
+     what makes entering and leaving feel like one gesture. It also needs no
+     opacity ramp — parked at ±130% the sheen is entirely outside the box and
+     the clip takes care of hiding it.
+
+   Gated behind `any-hover`, not `hover`. `hover`/`pointer` describe the
+   *primary* input, and a Windows laptop with a touchscreen reports that as
+   touch even while a mouse is plugged in — which switched this whole block
+   off on exactly the machines it was written for. `any-hover` asks whether
+   *any* attached device can hover, which is the real question, and still
+   excludes phones.
+   ========================================================================== */
+.media-zoom {
+  position: relative;
+  overflow: hidden;
+}
+
+@media (any-hover: hover) {
+  .media-zoom [data-zoom] {
+    transition: transform 900ms var(--ease-out-expo);
+    will-change: transform;
+  }
+  .media-zoom:hover [data-zoom] {
+    transform: scale(1.08);
+  }
+
+  .media-zoom::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    transform: translate3d(-130%, 0, 0);
+    transition: transform 1100ms var(--ease-standard);
+    background: linear-gradient(
+      102deg,
+      transparent 40%,
+      rgba(255, 255, 255, 0.34) 48%,
+      rgba(255, 255, 255, 0.34) 52%,
+      rgba(30, 20, 12, 0.06) 58%,
+      transparent 66%
+    );
+  }
+  .media-zoom:hover::after {
+    transform: translate3d(130%, 0, 0);
+  }
+}
+
+/* Enters from the left edge of its own box and settles. Used where a value
+   changes in place and the change should be legible as an arrival. */
+@keyframes dm-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translate3d(-28px, 0, 0);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+}
+
+@keyframes dm-wave {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
 @keyframes dm-breathe {
   0%,
   100% {

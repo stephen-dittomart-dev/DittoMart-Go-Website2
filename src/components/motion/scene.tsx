@@ -259,7 +259,7 @@ export function MediaPlate({
       >
         <div
           className={cn(
-            "relative w-full overflow-hidden",
+            "media-zoom relative w-full",
             aspect === "wide"
               ? "aspect-[16/10]"
               : aspect === "portrait"
@@ -267,24 +267,26 @@ export function MediaPlate({
                 : "aspect-square"
           )}
         >
-          <Image
-            data-plate-img
-            src={src}
-            alt={alt}
-            fill
-            sizes={sizes}
-            priority={priority}
-            /* Photographs carry detail that survives compression far better
-               than flat illustration does, so they can afford a lower quality
-               setting — and on a page holding a dozen of them that is the
-               difference between a fast first paint and a slow one. */
-            quality={isPhoto ? 68 : 80}
-            placeholder="blur"
-            className={cn(
-              "object-cover will-change-transform",
-              !isPhoto && "mix-blend-multiply"
-            )}
-          />
+          <span data-zoom className="absolute inset-0 block">
+            <Image
+              data-plate-img
+              src={src}
+              alt={alt}
+              fill
+              sizes={sizes}
+              priority={priority}
+              /* Photographs carry detail that survives compression far better
+                 than flat illustration does, so they can afford a lower quality
+                 setting — and on a page holding a dozen of them that is the
+                 difference between a fast first paint and a slow one. */
+              quality={isPhoto ? 68 : 80}
+              placeholder="blur"
+              className={cn(
+                "object-cover will-change-transform",
+                !isPhoto && "mix-blend-multiply"
+              )}
+            />
+          </span>
           <span
             aria-hidden
             className={cn(

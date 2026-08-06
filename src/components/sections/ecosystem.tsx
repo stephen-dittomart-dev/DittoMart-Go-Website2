@@ -90,16 +90,18 @@ export function Ecosystem() {
       className="relative scroll-mt-24 overflow-hidden border-y border-line bg-[#071018]"
     >
       {/* the artwork */}
-      <div className="absolute inset-0">
+      <div className="media-zoom absolute inset-0">
         <div data-eco="art" className="relative size-full will-change-transform">
-          <Image
-            src={media.ecosystem.src}
-            alt={media.ecosystem.alt}
-            fill
-            sizes="100vw"
-            placeholder="blur"
-            className="object-cover object-center"
-          />
+          <span data-zoom className="absolute inset-0 block">
+            <Image
+              src={media.ecosystem.src}
+              alt={media.ecosystem.alt}
+              fill
+              sizes="100vw"
+              placeholder="blur"
+              className="object-cover object-center"
+            />
+          </span>
         </div>
         <div
           aria-hidden

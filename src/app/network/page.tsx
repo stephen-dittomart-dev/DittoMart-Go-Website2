@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/layout/page-hero";
 import { Scene } from "@/components/motion/color-scene";
-import { MediaPlate } from "@/components/motion/scene";
 import { AgencyChapter } from "@/components/sections/chapters";
 import { CTA } from "@/components/sections/cta";
 import { NetworkGrid, NetworkStory } from "@/components/sections/network";
 import { OndcChapter } from "@/components/sections/ondc-dual";
 import { RoutingDecision } from "@/components/sections/routing-decision";
 import { NetworkOrbitScene } from "@/components/visuals/hero-scenes";
-import { media } from "@/lib/media";
 import { providers, providerStats } from "@/lib/providers";
 
 export const metadata: Metadata = {
@@ -38,14 +36,7 @@ export default function NetworkPage() {
             { label: "Contracts you sign", value: "1" },
           ]}
           visual={<NetworkOrbitScene />}
-        >
-          <MediaPlate
-            entry={media.ondc}
-            glow="accent"
-            motion="flip"
-            priority
-          />
-        </PageHero>
+        />
       </Scene>
 
       <Scene scene="sand" padded={false} sweep="none">
