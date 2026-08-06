@@ -4,7 +4,7 @@ import { useGSAP } from "@gsap/react";
 import { ArrowRight, Terminal } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import scooty from "@/assets/new/deliveryScooty2.png";
 import { RoutingMesh } from "@/components/motion/routing-mesh";
 import { SplitHeading } from "@/components/motion/split-heading";
@@ -37,10 +37,31 @@ const VISION_CARDS = [
 ];
 
 /**
- * Half the convoy's width, in px. Shared by the layout and by the tween, so
- * the travel distance can never drift out of step with the thing travelling.
+ * Convoy geometry, in px. Shared by the layout and by the tween, so the
+ * travel can never drift out of step with the thing travelling.
+ *
+ * The row is `CONVOY_HALF * 2` wide and centred with a negative margin, so
+ * everything below is measured from the middle of the row:
+ *
+ *   `CONVOY_LEAD` — how far right of the row's left edge the rider's back
+ *     wheel sits. Start the travel at `-(LEAD + half a viewport)` and the
+ *     rider is exactly one pixel off the left edge of the screen; use the
+ *     row's full half-width instead and there is a dead run of empty scroll
+ *     before anything appears.
+ *
+ * The travel runs the full width: from one half-viewport left of the rider to
+ * one half-viewport right of the last card, so the convoy enters completely
+ * and leaves completely. It used to stop with the last card centred, which
+ * meant the train sat frozen mid-screen for the last fifth of the runway.
+ *
+ * The last card passes the middle of the screen at roughly 75% of that travel
+ * — `(1175 + LEAD + vw/2) / (HALF + LEAD + vw)`, which lands between 0.72 and
+ * 0.79 across every plausible viewport. The convoy's duration below is set so
+ * that 75% mark coincides with the moment the film band starts climbing, and
+ * the two then run together to the end.
  */
 const CONVOY_HALF = 1330;
+const CONVOY_LEAD = 1160;
 
 /**
  * Home hero.
@@ -67,6 +88,48 @@ export function Hero({ ready = true }: { ready?: boolean }) {
   const root = useRef<HTMLElement>(null);
   const runway = useRef<HTMLDivElement>(null);
   const ctaRef = useMagnetic<HTMLSpanElement>(0.34);
+  /** The exit timeline, so the line sweep can be added to it once split. */
+  const exitRef = useRef<gsap.core.Timeline | null>(null);
+  const sweptRef = useRef(false);
+
+  /**
+   * Add the per-line sweep to the exit timeline.
+   *
+   * Called both when the timeline is built and again when `SplitHeading`
+   * reports that it has split — whichever happens second is the one that
+   * finds both halves present and does the work. That ordering is genuinely
+   * unknown: splitting waits on `document.fonts.ready`, which resolves before
+   * the timeline on a warm cache and long after it on a cold one.
+   */
+  const addLineSweep = useCallback(() => {
+    const el = root.current;
+    const exit = exitRef.current;
+    if (!el || !exit || sweptRef.current) return;
+
+    const lines = Array.from(
+      el.querySelectorAll<HTMLElement>("[data-hero='copy'] .split-line")
+    );
+    if (!lines.length) return;
+    sweptRef.current = true;
+
+    // The first line goes hard and the other two chase it. Equal speeds read
+    // as a list animating; a lead and two followers reads as one gesture.
+    const at = [0, 0.05, 0.11];
+    const dur = [0.05, 0.07, 0.07];
+    lines.forEach((line, i) => {
+      exit.to(
+        line,
+        {
+          xPercent: -118,
+          autoAlpha: 0,
+          filter: "blur(10px)",
+          ease: "power2.in",
+          duration: dur[Math.min(i, dur.length - 1)],
+        },
+        at[Math.min(i, at.length - 1)] + Math.max(0, i - 2) * 0.06
+      );
+    });
+  }, []);
 
   useGSAP(
     () => {
@@ -87,7 +150,7 @@ export function Hero({ ready = true }: { ready?: boolean }) {
       */
       gsap.set(q("[data-hero='sheet']"), { yPercent: 100 });
       gsap.set(q("[data-hero='convoy']"), {
-        x: () => -(CONVOY_HALF + window.innerWidth / 2),
+        x: () => -(CONVOY_LEAD + window.innerWidth / 2),
       });
 
       if (prefersReducedMotion()) {
@@ -151,81 +214,110 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         },
       });
 
-      // 1 · copy clears left, early
+      /* 1 · the headline leaves a line at a time.
+
+           The whole copy block used to sweep as one object, which is why it
+           read as a panel being pushed rather than as writing being cleared.
+           The three lines now go individually — the first fast, the other two
+           chasing it — and only once they are gone does the rest of the
+           column fade.
+
+           The line tweens are not added here. The lines do not exist yet:
+           SplitText runs after webfonts resolve, so at this moment the
+           headline is still one text node. `addLineSweep` below drops them
+           into this same timeline the instant they appear, at fixed
+           positions, so the timeline's length never changes and the
+           ScrollTrigger never needs re-measuring. */
+      exitRef.current = exit;
+      sweptRef.current = false;
+      addLineSweep();
+
       exit
+        .to(q("[data-hero='cue']"), { autoAlpha: 0, ease: "none", duration: 0.1 }, 0)
+
+        /* Everything else in the column fades where it stands. It follows the
+           last line out rather than travelling with it — the headline is what
+           leaves, the supporting copy is what is left behind.
+
+           The heading itself is in this group as a fallback: if webfonts
+           never resolve and the split never happens, the line tweens are
+           never added and this is the only thing that clears the headline. */
         .to(
-          q("[data-hero='copy']"),
-          { xPercent: -58, autoAlpha: 0, filter: "blur(12px)", ease: "power1.in" },
-          0
+          q(
+            "[data-hero='badge'], [data-hero='lede'], [data-hero='cta'], [data-hero='note'], [data-hero='copy'] h1"
+          ),
+          { autoAlpha: 0, filter: "blur(10px)", ease: "power1.in", duration: 0.09 },
+          0.16
         )
-        .to(q("[data-hero='cue']"), { autoAlpha: 0, ease: "none" }, 0)
 
-        // 2 · the mesh zooms the whole way through. Less far than the photo
-        //     went: a canvas magnified past ~2× is visibly resampled, and the
-        //     graph already gains depth from its own perspective divide.
-        .to(q("[data-hero='art']"), { scale: 2.05, ease: "power1.in" }, 0)
-        .to(q("[data-hero='scrim']"), { autoAlpha: 0, ease: "none" }, 0.1)
+        // 2 · the mesh zooms. Less far than the photo went: a canvas
+        //     magnified past ~2× is visibly resampled, and the graph already
+        //     gains depth from its own perspective divide.
+        .to(q("[data-hero='art']"), { scale: 2.05, ease: "power1.in", duration: 0.4 }, 0)
+        .to(q("[data-hero='scrim']"), { autoAlpha: 0, ease: "none", duration: 0.16 }, 0.06)
 
-        // 3 · it dissolves from the middle outward, and the next colour is
-        //     already sitting behind that dissolve.
-        //
-        //     The dissolve is timed to land at the very end of the runway.
-        //     It used to finish early, which left a stretch of scroll where
-        //     the iris had already covered everything — a flat empty screen
-        //     with nothing happening — before the next section arrived.
+        /* 3 · the dissolve — phones only.
+
+           On desktop the white sheet is the handover, and an iris filling
+           with sand underneath a rising white sheet showed as a band of the
+           wrong colour above it. The element is `lg:hidden`, so this tween
+           has nothing to do there; below `lg` it is still the whole exit. */
         .fromTo(
           q("[data-hero='iris']"),
           { autoAlpha: 0, scale: 0.05 },
-          { autoAlpha: 1, scale: 1, ease: "power2.in", duration: 0.6 },
-          0.4
+          { autoAlpha: 1, scale: 1, ease: "power2.in", duration: 0.58 },
+          0.42
         )
-        .to(q("[data-hero='art']"), { autoAlpha: 0, ease: "none", duration: 0.2 }, 0.8)
 
         /* ---------------------------------------------------------------
            4 · the white intermission
 
            A sheet rises from the bottom edge and takes the screen. The rider
-           settles at dead centre, and the vision follows him through as a
-           train of cards passing behind him. When the last card has gone the
-           sheet keeps going up and off, and the next section is behind it.
+           comes in through the left edge while it is still rising, and the
+           vision follows him through as a train of cards.
 
-           It is desktop-only. The sheet is `hidden lg:block`, so on phones the
-           hero still ends on its original iris dissolve — there is no room to
-           run a 2600px train across a 390px screen, and a train that only
-           shows one card at a time is a slideshow.
+           Desktop only. The sheet is `hidden lg:block`: there is no room to
+           run a 2500px train across a 390px screen, and a train that shows
+           one card at a time is a slideshow.
            --------------------------------------------------------------- */
-        /* The sheet takes a quarter of the runway to arrive. It used to take
-           a sixteenth, which on a 300vh runway was about half a screen of
-           scroll — fast enough that it read as a cut. */
         .to(
           q("[data-hero='sheet']"),
           { yPercent: 0, ease: EASE.inOut3, duration: 0.28 },
-          0.18
+          0.3
         )
 
-        /* The convoy sets off at 0.32 — the sheet is about half way up, so
-           the rider comes in through the left edge onto a screen that is
-           still rising, rather than onto a finished blank one.
+        /* The convoy sets off at 0.44 — exactly half way through the sheet's
+           rise, so the rider enters the left edge onto a screen that is still
+           moving rather than onto a finished blank one.
 
            Rider and cards are one element. They were separate before, which
            is why the rider sat still in the middle while the cards flew past
            him: two tweens, two clocks, no relationship. One element means the
-           cards trail him because they are physically behind him, not
-           because a second tween was told to look like it.
+           cards trail him because they are physically behind him, not because
+           a second tween was told to look like it.
 
-           Travel is a function of the viewport at both ends. `ease: "none"`
-           for the whole crossing — a vehicle under scroll control should
-           track the scroll exactly, and any easing reads as the wheels
-           slipping. */
+           It runs the whole way out, and the duration is what synchronises it
+           with the band climbing over it.
+
+           0.44 + 0.75 × 0.49 ≈ 0.81, which is exactly where the film band's
+           overlap begins. So the last card reaches the middle of the screen
+           on the same frame the next section starts rising, and from there
+           both keep going — the card carries on to the right edge underneath
+           while the band climbs over it. Ending the travel early instead left
+           the train parked mid-screen for the last fifth of the runway.
+
+           Both ends are functions of the viewport; `ease: "none"` because a
+           vehicle under scroll control should track the scroll exactly, and
+           easing reads as wheelspin. */
         .fromTo(
           q("[data-hero='convoy']"),
-          { x: () => -(CONVOY_HALF + window.innerWidth / 2) },
+          { x: () => -(CONVOY_LEAD + window.innerWidth / 2) },
           {
             x: () => CONVOY_HALF + window.innerWidth / 2,
             ease: "none",
-            duration: 0.66,
+            duration: 0.49,
           },
-          0.32
+          0.44
         );
 
       /* The sheet is never lifted by a tween, and that is the point.
@@ -245,9 +337,11 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         tl.kill();
         exit.scrollTrigger?.kill();
         exit.kill();
+        exitRef.current = null;
+        sweptRef.current = false;
       };
     },
-    { scope: root, dependencies: [ready] }
+    { scope: root, dependencies: [ready, addLineSweep] }
   );
 
   return (
@@ -267,7 +361,7 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         pass, and the sheet has to leave. Phones never run that, so their
         runway stays at the length of the original dissolve.
       */}
-      <div ref={runway} className="relative h-[168vh] lg:h-[440vh]">
+      <div ref={runway} className="relative h-[168vh] lg:h-[520vh]">
         {/* the stage — held by sticky, never re-laid-out */}
         <div className="sticky top-0 flex h-dvh items-center overflow-hidden">
           {/* ---------- artwork ---------- */}
@@ -312,7 +406,10 @@ export function Hero({ ready = true }: { ready?: boolean }) {
             {/* the dissolve the next section emerges from */}
             <div
               data-hero="iris"
-              className="absolute left-1/2 top-1/2 aspect-square w-[260vmax] -translate-x-1/2 -translate-y-1/2 rounded-full"
+              /* Phones only. On desktop the white sheet is the handover, and
+                 an iris filling with sand under a rising white sheet showed
+                 as a band of the wrong colour above it. */
+              className="absolute left-1/2 top-1/2 aspect-square w-[260vmax] -translate-x-1/2 -translate-y-1/2 rounded-full lg:hidden"
               style={{
                 opacity: 0,
                 background: `radial-gradient(closest-side, ${NEXT_SCENE_BG} 55%, ${NEXT_SCENE_BG}e6 72%, transparent 88%)`,
@@ -445,6 +542,12 @@ export function Hero({ ready = true }: { ready?: boolean }) {
                 mode="lines"
                 scroll={false}
                 play={ready}
+                /* No idle wave here. `mask: "lines"` gives each line an
+                   overflow-clipped box, so nudging the words inside it up and
+                   down crops them against that box — which reads as the lines
+                   shrinking, not breathing. The life in this hero comes from
+                   the mesh behind it instead. */
+                onReady={addLineSweep}
                 delay={0.3}
                 className="mt-8 text-[2.5rem] font-semibold leading-[1.02] tracking-[-0.04em] text-white [text-shadow:0_2px_24px_rgba(0,0,0,0.6)] sm:text-[3.4rem] lg:text-[4.4rem]"
               />

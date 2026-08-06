@@ -90,14 +90,34 @@ export default function HomePage() {
 
       {/* 02 · sand — the film.
 
-          No `enter="zoom"` any more. That entrance started the band at 1.28×
-          and fully transparent and only resolved once its top had reached 22%
-          of the viewport — which meant that as the hero's white sheet lifted
-          away, the thing behind it was still invisible. That was the empty
-          screen: not a gap in the scroll, a section deliberately hiding
-          itself. Without it, "Watch a delivery" is already there as the sheet
-          goes up, and follows it straight into place. */}
-      <Scene scene="sand" id="film" padded={false} sweep="none">
+          It overlaps the hero rather than following it.
+
+          `-mt-[100vh]` pulls this band a full screen back up the document, so
+          its top edge sits one viewport before the hero's runway ends. The
+          hero stage is still stuck to the top through all of that, so for
+          that last screen of scroll the rider keeps running underneath while
+          this band climbs over him and takes the frame. `z-30` decides who is
+          on top; the sheet inside the hero is `z-20`.
+
+          No JavaScript, no second ScrollTrigger. The overlap is the browser
+          scrolling one box over a stuck one — the only version of this that
+          cannot drift out of sync with the animation it is covering.
+
+          Desktop only: below `lg` the hero runway is 168vh and the white
+          intermission never renders, so eating a whole viewport of it would
+          swallow the dissolve that is the handover there.
+
+          There is also no `enter="zoom"` any more. That entrance started the
+          band at 1.28× and fully transparent until its top reached 22% of the
+          viewport — so the thing climbing over the hero would have been
+          invisible for most of the climb. */}
+      <Scene
+        scene="sand"
+        id="film"
+        padded={false}
+        sweep="none"
+        className="lg:z-30 lg:-mt-[100vh]"
+      >
         <Film />
       </Scene>
 

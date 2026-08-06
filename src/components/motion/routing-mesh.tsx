@@ -89,13 +89,66 @@ const LINK_DIST = 94;
    sit right of centre because the hero copy occupies the left column and the
    scrim under it clears at ~70%.
    -------------------------------------------------------------------------- */
-const ROUTE = [
-  { label: "DittoMart Go", x: 0.5, y: 0.33 },
-  { label: "3PL Network", x: 0.615, y: 0.58 },
-  { label: "Rider", x: 0.725, y: 0.31 },
-  { label: "Handover", x: 0.835, y: 0.59 },
-  { label: "Customer", x: 0.935, y: 0.35 },
-] as const;
+type Stop = { label: string; x: number; y: number };
+type RouteSpec = {
+  stops: Stop[];
+  /** Seconds into the shared clock at which this route starts its cycle. */
+  offset: number;
+  /** `true` for the main route: larger type, brighter line, teal endpoint. */
+  primary?: boolean;
+};
+
+/**
+ * Three routes, not one.
+ *
+ * A single chain was too quiet — most of the time nothing was happening
+ * anywhere on the screen, and the one thing that did happen was easy to miss
+ * entirely. Three overlapping chains means something is always connecting
+ * somewhere, and because each carries a different subsystem the background
+ * ends up saying three true things instead of one.
+ *
+ * They are separated by band rather than by luck: the delivery chain runs
+ * across the top, the money chain across the middle, the evidence chain along
+ * the bottom. Overlapping them vertically would produce a tangle no offset
+ * could fix. Everything sits right of ~0.46 because the hero copy owns the
+ * left column.
+ *
+ * The offsets are deliberately not multiples of each other, so the three
+ * never fall into step and start reading as one animation with three parts.
+ */
+const ROUTES: RouteSpec[] = [
+  {
+    // the delivery
+    primary: true,
+    offset: 0,
+    stops: [
+      { label: "DittoMart Go", x: 0.475, y: 0.22 },
+      { label: "3PL Network", x: 0.59, y: 0.35 },
+      { label: "Rider", x: 0.7, y: 0.18 },
+      { label: "Handover", x: 0.81, y: 0.32 },
+      { label: "Customer", x: 0.92, y: 0.2 },
+    ],
+  },
+  {
+    // the money
+    offset: 2.3,
+    stops: [
+      { label: "Order in", x: 0.5, y: 0.53 },
+      { label: "Wallet gate", x: 0.63, y: 0.62 },
+      { label: "Rate card", x: 0.77, y: 0.48 },
+      { label: "Invoiced", x: 0.9, y: 0.57 },
+    ],
+  },
+  {
+    // the evidence
+    offset: 4.1,
+    stops: [
+      { label: "Pickup photo", x: 0.54, y: 0.79 },
+      { label: "Temp sensor", x: 0.71, y: 0.87 },
+      { label: "Proof of freshness", x: 0.88, y: 0.76 },
+    ],
+  },
+];
 
 /** Seconds per hop, and the shape of one full cycle. */
 const HOP = 0.66;
@@ -103,8 +156,10 @@ const ROUTE_START = 0.5;
 const ROUTE_HOLD = 1.4;
 const ROUTE_FADE = 0.7;
 const ROUTE_GAP = 0.5;
-const ROUTE_LIT = ROUTE_START + (ROUTE.length - 1) * HOP;
-const ROUTE_CYCLE = ROUTE_LIT + ROUTE_HOLD + ROUTE_FADE + ROUTE_GAP;
+
+const routeLit = (r: RouteSpec) => ROUTE_START + (r.stops.length - 1) * HOP;
+const routeCycle = (r: RouteSpec) =>
+  routeLit(r) + ROUTE_HOLD + ROUTE_FADE + ROUTE_GAP;
 
 /**
  * Below this the route is dropped and only the ambient cloud remains.
@@ -231,33 +286,43 @@ export function RoutingMesh({
     const order: number[] = nodes.map((_, i) => i);
     let t = 0;
     let yaw = 0;
-    /** Seconds into the current route cycle. */
-    let routeT = 0;
-    /** Which cloud node each stop is currently riding. */
-    let anchors: number[] = [];
+    /** One shared clock, in seconds. Each route reads it through its offset. */
+    let clock = 0;
+    /** Which cloud node each stop of each route is currently riding. */
+    const anchors: number[][] = ROUTES.map(() => []);
+    /** Last frame's cycle position per route, used to detect the wrap. */
+    const lastT: number[] = ROUTES.map(() => 0);
+    /** Nodes currently spoken for, so two stops never land on the same one. */
+    const claimed = new Set<number>();
     /** Frames spent letting the cloud reach its positions before binding. */
     let warmup = 0;
 
     /**
-     * Bind the five stops to fresh cloud nodes.
+     * Bind one route's stops to fresh cloud nodes.
      *
-     * A full scan of the cloud per stop — 1500 comparisons — but it runs once
-     * every cycle, roughly every six seconds, so the cost is irrelevant and
-     * the quality of the pick is not: a sampled guess regularly lands two
-     * stops on top of each other, and the route stops reading as a sequence.
+     * A full scan of the cloud per stop — 300 comparisons each — but a route
+     * rebinds once per cycle, every six seconds or so, so the cost is
+     * irrelevant and the quality of the pick is not: a sampled guess
+     * regularly lands two stops on top of each other and the route stops
+     * reading as a sequence.
      *
      * `depth > 1.05` keeps the choice to the front half of the sphere. Nodes
      * behind it are the ones that would rotate out of view mid-cycle.
+     *
+     * `claimed` spans all three routes, and this route's own nodes are
+     * released before it re-picks — otherwise the set only ever grows and by
+     * the third cycle there is nothing left to choose from.
      */
-    const reanchor = () => {
-      const used = new Set<number>();
-      anchors = ROUTE.map((stop) => {
+    const reanchor = (r: number) => {
+      for (const i of anchors[r]) claimed.delete(i);
+
+      anchors[r] = ROUTES[r].stops.map((stop) => {
         const tx = width * stop.x;
         const ty = height * stop.y;
         let best = -1;
         let bestScore = -Infinity;
         for (let i = 0; i < n; i++) {
-          if (used.has(i)) continue;
+          if (claimed.has(i)) continue;
           const p = nodes[i];
           if (p.depth < 1.05) continue;
           // nearest the slot wins, with a nudge toward nodes further forward
@@ -268,10 +333,12 @@ export function RoutingMesh({
           }
         }
         if (best === -1) best = Math.floor(Math.random() * n);
-        used.add(best);
+        claimed.add(best);
         return best;
       });
     };
+
+    const reanchorAll = () => ROUTES.forEach((_, r) => reanchor(r));
 
     const draw = () => {
       const cx = width * originX + driftX;
@@ -363,26 +430,36 @@ export function RoutingMesh({
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = "source-over";
 
-      drawRoute();
+      ROUTES.forEach((_, r) => drawRoute(r));
     };
 
     /**
-     * The five-stop route, drawn over the cloud.
+     * One route, drawn over the cloud.
      *
-     * One clock (`routeT`) drives everything, and every stage is a slice of
-     * it. Stop `i` lights at `ROUTE_START + i * HOP`; the segment leaving it
-     * draws over the following 80% of a hop, so the line is fully arrived
-     * before the next stop wakes — otherwise the chain reads as five things
-     * blinking rather than one thing travelling.
+     * A single clock per route drives everything, and every stage is a slice
+     * of it. Stop `i` lights at `ROUTE_START + i * HOP`; the segment leaving
+     * it draws over the following 80% of a hop, so the line has fully arrived
+     * before the next stop wakes — otherwise the chain reads as a handful of
+     * things blinking rather than one thing travelling.
+     *
+     * The two secondary routes are drawn at reduced weight. Three chains at
+     * equal strength is a tangle with no subject; one lead and two supporting
+     * gives the eye somewhere to start.
      */
-    function drawRoute() {
-      if (width < ROUTE_MIN_WIDTH || anchors.length !== ROUTE.length) return;
+    function drawRoute(r: number) {
+      const spec = ROUTES[r];
+      const stops = spec.stops;
+      if (width < ROUTE_MIN_WIDTH || anchors[r].length !== stops.length) return;
       const g = ctx!;
 
+      const cycle = routeCycle(spec);
+      const rt = (clock + spec.offset) % cycle;
+
       // whole-route opacity: solid through the hold, then out, then dark
-      const fadeFrom = ROUTE_LIT + ROUTE_HOLD;
+      const fadeFrom = routeLit(spec) + ROUTE_HOLD;
       const alpha =
-        routeT < fadeFrom ? 1 : 1 - clamp01((routeT - fadeFrom) / ROUTE_FADE);
+        (rt < fadeFrom ? 1 : 1 - clamp01((rt - fadeFrom) / ROUTE_FADE)) *
+        (spec.primary ? 1 : 0.72);
       if (alpha <= 0.001) return;
 
       /* Positions come straight off the anchored nodes, so every stop
@@ -392,8 +469,8 @@ export function RoutingMesh({
       const px: number[] = [];
       const py: number[] = [];
       const pd: number[] = [];
-      for (let i = 0; i < ROUTE.length; i++) {
-        const node = nodes[anchors[i]];
+      for (let i = 0; i < stops.length; i++) {
+        const node = nodes[anchors[r][i]];
         px.push(node.x);
         py.push(node.y);
         pd.push(node.depth);
@@ -401,9 +478,9 @@ export function RoutingMesh({
 
       /* --- segments --- */
       g.lineCap = "round";
-      for (let i = 0; i < ROUTE.length - 1; i++) {
+      for (let i = 0; i < stops.length - 1; i++) {
         const from = ROUTE_START + i * HOP;
-        const p = clamp01((routeT - from) / (HOP * 0.8));
+        const p = clamp01((rt - from) / (HOP * 0.8));
         if (p <= 0) continue;
         const e = 1 - (1 - p) ** 3;
 
@@ -411,12 +488,12 @@ export function RoutingMesh({
         g.moveTo(px[i], py[i]);
         g.lineTo(px[i] + (px[i + 1] - px[i]) * e, py[i] + (py[i + 1] - py[i]) * e);
         g.strokeStyle = `rgba(${WIRE_RGB},${(0.62 * alpha).toFixed(3)})`;
-        g.lineWidth = 1.6;
+        g.lineWidth = spec.primary ? 1.6 : 1.2;
         g.stroke();
 
         // the payload riding the segment as it draws
         if (p < 1) {
-          const s = 20;
+          const s = spec.primary ? 20 : 15;
           g.globalCompositeOperation = "lighter";
           g.globalAlpha = alpha;
           g.drawImage(
@@ -432,18 +509,18 @@ export function RoutingMesh({
       }
 
       /* --- stops --- */
-      g.font =
-        "600 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+      const fs = spec.primary ? 11 : 10;
+      g.font = `600 ${fs}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
       g.textAlign = "center";
       g.textBaseline = "middle";
 
-      for (let i = 0; i < ROUTE.length; i++) {
-        const lit = clamp01((routeT - (ROUTE_START + i * HOP)) / 0.32);
+      for (let i = 0; i < stops.length; i++) {
+        const lit = clamp01((rt - (ROUTE_START + i * HOP)) / 0.32);
         if (lit <= 0) continue;
         const a = alpha * lit;
-        // the last stop is the customer — the only one in teal, because it is
-        // the only one that is not us
-        const isEnd = i === ROUTE.length - 1;
+        // only the lead route ends somewhere that is not us, so only the lead
+        // route has a stop in the other colour
+        const isEnd = spec.primary === true && i === stops.length - 1;
 
         // arrival ring, once
         if (lit < 1) {
@@ -455,7 +532,7 @@ export function RoutingMesh({
         }
 
         // the glow, then a hard core so the dot has an edge at any size
-        const gs = 26 * pd[i];
+        const gs = (spec.primary ? 26 : 20) * pd[i];
         g.globalCompositeOperation = "lighter";
         g.globalAlpha = a;
         g.drawImage(sprites[isEnd ? 2 : 0], px[i] - gs / 2, py[i] - gs / 2, gs, gs);
@@ -463,16 +540,16 @@ export function RoutingMesh({
         g.globalCompositeOperation = "source-over";
 
         g.beginPath();
-        g.arc(px[i], py[i], 3.4 * pd[i], 0, Math.PI * 2);
+        g.arc(px[i], py[i], (spec.primary ? 3.4 : 2.6) * pd[i], 0, Math.PI * 2);
         g.fillStyle = `rgba(255,255,255,${(0.95 * a).toFixed(3)})`;
         g.fill();
 
         /* label — kept inside the canvas rather than allowed to run off the
-           right edge, which is where the last two stops sit */
-        const text = ROUTE[i].label.toUpperCase();
+           right edge, which is where the last stops sit */
+        const text = stops[i].label.toUpperCase();
         const half = g.measureText(text).width / 2;
         const lx = Math.min(Math.max(px[i], half + 14), width - half - 14);
-        const ly = py[i] - 22;
+        const ly = py[i] - (spec.primary ? 22 : 19);
 
         /* A backing plate, because the cloud behind is bright and uneven.
 
@@ -483,15 +560,15 @@ export function RoutingMesh({
         g.fillStyle = `rgba(7,9,13,${(0.62 * a).toFixed(3)})`;
         g.beginPath();
         if (roundRectOk) {
-          g.roundRect(lx - half - 8, ly - 10, half * 2 + 16, 20, 10);
+          g.roundRect(lx - half - 8, ly - 9, half * 2 + 16, 18, 9);
           g.fill();
         } else {
-          g.fillRect(lx - half - 8, ly - 10, half * 2 + 16, 20);
+          g.fillRect(lx - half - 8, ly - 9, half * 2 + 16, 18);
         }
 
         g.fillStyle = isEnd
           ? `rgba(126,240,221,${(0.95 * a).toFixed(3)})`
-          : `rgba(255,236,220,${(0.92 * a).toFixed(3)})`;
+          : `rgba(255,236,220,${((spec.primary ? 0.92 : 0.8) * a).toFixed(3)})`;
         g.fillText(text, lx, ly);
       }
 
@@ -510,19 +587,24 @@ export function RoutingMesh({
       driftY += (pointerY * 30 - driftY) * 0.045;
 
       // in seconds, so the route constants read as the timings they are
-      routeT += ratio / 60;
-      if (routeT >= ROUTE_CYCLE) {
-        routeT -= ROUTE_CYCLE;
-        // end of the blank gap — nothing is on screen to jump
-        reanchor();
+      clock += ratio / 60;
+
+      /* Each route rebinds when its own cycle wraps — which, because the
+         offsets differ, is a different moment for each of the three. The wrap
+         lands inside that route's blank gap, so there is nothing on screen to
+         jump when its stops move to new nodes. */
+      for (let r = 0; r < ROUTES.length; r++) {
+        const rt = (clock + ROUTES[r].offset) % routeCycle(ROUTES[r]);
+        if (rt < lastT[r]) reanchor(r);
+        lastT[r] = rt;
       }
 
       /* The first bind waits for the cloud to reach its positions. Nodes are
          seeded at the centre and ease outward, so anchoring on frame one
-         would pick five nodes that are all still stacked on the origin. */
+         would pick every stop from the same pile at the origin. */
       if (warmup < 34) {
         warmup++;
-        if (warmup === 34) reanchor();
+        if (warmup === 34) reanchorAll();
       }
 
       draw();
@@ -541,12 +623,12 @@ export function RoutingMesh({
     };
 
     if (reduced) {
-      // Park the clock inside the hold so the single static frame shows the
-      // completed route rather than an empty stretch of the cycle.
-      routeT = ROUTE_LIT + ROUTE_HOLD * 0.5;
+      // Park the clock inside the primary route's hold so the single static
+      // frame shows completed routes rather than an empty stretch of cycle.
+      clock = routeLit(ROUTES[0]) + ROUTE_HOLD * 0.5;
       // settle the eased positions, bind the stops, then draw the one frame
       for (let i = 0; i < 40; i++) draw();
-      reanchor();
+      reanchorAll();
       draw();
     } else {
       start();

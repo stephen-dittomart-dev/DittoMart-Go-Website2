@@ -61,6 +61,7 @@ export function SplitHeading({
   highlightClassName = "text-primary",
   onReady,
   play = true,
+  idle = "none",
 }: {
   text: string;
   children?: ReactNode;
@@ -80,6 +81,18 @@ export function SplitHeading({
    * the headline does not play out of sight underneath the intro overlay.
    */
   play?: boolean;
+  /**
+   * What the heading does *after* it has arrived.
+   *
+   * `wave` keeps it alive: a slow sine travels through the words left to
+   * right, forever, so the headline breathes whether or not anyone scrolls.
+   *
+   * It is one continuous function of time rather than a stack of looping
+   * tweens. Two infinite tweens writing `y` on the same word fight each other
+   * and the result drifts; a single wave has one value per word per frame and
+   * cannot disagree with itself.
+   */
+  idle?: "none" | "wave";
 }) {
   const ref = useRef<HTMLElement>(null);
 
@@ -102,6 +115,29 @@ export function SplitHeading({
 
       let split: SplitText | null = null;
       let tl: gsap.core.Timeline | null = null;
+      let wave: gsap.TickerCallback | null = null;
+
+      /**
+       * The idle wave.
+       *
+       * Driven straight off the site's ticker with `quickSetter`, which
+       * writes the transform without going through a tween at all — for ten
+       * or so words that is a handful of property writes a frame, well below
+       * the cost of the tweens it replaces.
+       *
+       * Amplitude is deliberately tiny. At 3px it reads as the type being
+       * alive; at 8px it reads as the page being broken.
+       */
+      const startWave = (words: Element[]) => {
+        if (idle !== "wave" || !words.length) return;
+        const setters = words.map((w) => gsap.quickSetter(w, "y", "px"));
+        wave = (time: number) => {
+          for (let i = 0; i < setters.length; i++) {
+            setters[i](Math.sin(time * 1.15 - i * 0.5) * 3);
+          }
+        };
+        gsap.ticker.add(wave);
+      };
 
       const run = () => {
         if (!ref.current) return;
@@ -118,12 +154,19 @@ export function SplitHeading({
 
         gsap.set(el, { opacity: 1 });
 
+        const words = split.words as Element[];
+
         tl = gsap.timeline({
           delay,
           ...(scroll
             ? { scrollTrigger: { trigger: el, start, once: true } }
             : {}),
-          onComplete: () => onReady?.(),
+          onComplete: () => {
+            onReady?.();
+            // The wave only takes over once the entrance has finished, so the
+            // two never write `y` on the same word in the same frame.
+            startWave(words);
+          },
         });
 
         if (mode === "lines") {
@@ -197,11 +240,15 @@ export function SplitHeading({
       else document.fonts?.ready.then(run).catch(run);
 
       return () => {
+        // Off the ticker before the split reverts — a wave still holding
+        // setters for elements SplitText has just destroyed writes to
+        // detached nodes every frame for the life of the page.
+        if (wave) gsap.ticker.remove(wave);
         tl?.kill();
         split?.revert();
       };
     },
-    { scope: ref, dependencies: [text, mode, play] }
+    { scope: ref, dependencies: [text, mode, play, idle] }
   );
 
   const content = children ?? renderHighlighted(text, highlight, highlightClassName);
