@@ -59,7 +59,7 @@ const networkSchema = {
  * Colour rhythm: every band declares its own scene and consecutive bands
  * never share one, so scrolling reads as moving between rooms.
  *
- *   ink → sand → crimson → ink(burst) → bone → ember → teal → slate → ink
+ *   ink → sand → crimson → ink(burst) → bone → teal → slate → sand → ink
  */
 export default function HomePage() {
   return (
@@ -88,9 +88,16 @@ export default function HomePage() {
       {/* 01 · ink — the opening */}
       <HomeStage />
 
-      {/* 02 · sand — the film. Picks up mid-zoom from the hero's dissolve and
-          pulls back into place, so the handover has no gap in it. */}
-      <Scene scene="sand" id="film" padded={false} sweep="none" enter="zoom">
+      {/* 02 · sand — the film.
+
+          No `enter="zoom"` any more. That entrance started the band at 1.28×
+          and fully transparent and only resolved once its top had reached 22%
+          of the viewport — which meant that as the hero's white sheet lifted
+          away, the thing behind it was still invisible. That was the empty
+          screen: not a gap in the scroll, a section deliberately hiding
+          itself. Without it, "Watch a delivery" is already there as the sheet
+          goes up, and follows it straight into place. */}
+      <Scene scene="sand" id="film" padded={false} sweep="none">
         <Film />
       </Scene>
 

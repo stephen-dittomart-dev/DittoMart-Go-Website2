@@ -2,17 +2,45 @@
 
 import { useGSAP } from "@gsap/react";
 import { ArrowRight, Terminal } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRef } from "react";
+import scooty from "@/assets/new/deliveryScooty2.png";
 import { RoutingMesh } from "@/components/motion/routing-mesh";
 import { SplitHeading } from "@/components/motion/split-heading";
 import { Button } from "@/components/ui/button";
 import { useMagnetic } from "@/hooks/use-motion";
 import { EASE, gsap, prefersReducedMotion, registerGsap } from "@/lib/motion";
 import { sceneVars } from "@/lib/scenes";
+import { cn } from "@/lib/utils";
 
 /** The colour the next scene opens on, so the handover is seamless. */
 const NEXT_SCENE_BG = "#e7dfd2";
+
+/**
+ * The vision, as a train of cards that follows the rider across the white
+ * intermission. The first is the statement; the rest are what it means.
+ *
+ * This lives inside the hero's own exit — there is no separate section and no
+ * separate scroll trigger. The runway simply gets longer on desktop to give
+ * the train room to pass.
+ */
+const VISION_CARDS = [
+  {
+    eyebrow: "Our vision",
+    title: "Any parcel, any city — without owning a vehicle",
+    lead: true,
+  },
+  { eyebrow: "01", title: "One integration, not nine contracts" },
+  { eyebrow: "02", title: "Capacity you rent, not a fleet you own" },
+  { eyebrow: "03", title: "Proof attached to every handover" },
+];
+
+/**
+ * Half the convoy's width, in px. Shared by the layout and by the tween, so
+ * the travel distance can never drift out of step with the thing travelling.
+ */
+const CONVOY_HALF = 1330;
 
 /**
  * Home hero.
@@ -48,8 +76,25 @@ export function Hero({ ready = true }: { ready?: boolean }) {
       if (!el || !track) return;
       const q = gsap.utils.selector(el);
 
+      /*
+        Park the convoy off the left edge before anything else runs.
+
+        It has to happen here, ahead of every early return, because the tween
+        that moves it lives on a scrubbed timeline that does not exist until
+        `ready`. Without this the rig sits at its natural position — dead
+        centre of the hero — from first paint until the reader scrolls, which
+        is exactly the "it just shows up in the hero" problem.
+      */
+      gsap.set(q("[data-hero='sheet']"), { yPercent: 100 });
+      gsap.set(q("[data-hero='convoy']"), {
+        x: () => -(CONVOY_HALF + window.innerWidth / 2),
+      });
+
       if (prefersReducedMotion()) {
         gsap.set(q("[data-hero]"), { opacity: 1, y: 0, clearProps: "all" });
+        // No exit timeline under reduced motion, so nothing would ever drive
+        // the intermission. Better absent than parked across the hero.
+        gsap.set(q("[data-hero='sheet']"), { autoAlpha: 0, yPercent: 100 });
         return;
       }
 
@@ -85,6 +130,16 @@ export function Hero({ ready = true }: { ready?: boolean }) {
       // The mesh supplies its own idle life — rotation, breathing, packets —
       // so the old drifting tween on the art wrapper is gone. Two sources of
       // ambient motion on the same element read as drift, not intent.
+
+      /* The rider idles on its own clock, not on the scroll. Something that
+         only moves while you are scrolling is a sticker, not a vehicle. */
+      gsap.to(q("[data-hero='bob']"), {
+        y: -12,
+        duration: 1.5,
+        ease: "sine.inOut",
+        repeat: -1,
+        yoyo: true,
+      });
 
       /* ---------- the exit, scrubbed across the runway ---------- */
       const exit = gsap.timeline({
@@ -124,7 +179,67 @@ export function Hero({ ready = true }: { ready?: boolean }) {
           { autoAlpha: 1, scale: 1, ease: "power2.in", duration: 0.6 },
           0.4
         )
-        .to(q("[data-hero='art']"), { autoAlpha: 0, ease: "none", duration: 0.2 }, 0.8);
+        .to(q("[data-hero='art']"), { autoAlpha: 0, ease: "none", duration: 0.2 }, 0.8)
+
+        /* ---------------------------------------------------------------
+           4 · the white intermission
+
+           A sheet rises from the bottom edge and takes the screen. The rider
+           settles at dead centre, and the vision follows him through as a
+           train of cards passing behind him. When the last card has gone the
+           sheet keeps going up and off, and the next section is behind it.
+
+           It is desktop-only. The sheet is `hidden lg:block`, so on phones the
+           hero still ends on its original iris dissolve — there is no room to
+           run a 2600px train across a 390px screen, and a train that only
+           shows one card at a time is a slideshow.
+           --------------------------------------------------------------- */
+        /* The sheet takes a quarter of the runway to arrive. It used to take
+           a sixteenth, which on a 300vh runway was about half a screen of
+           scroll — fast enough that it read as a cut. */
+        .to(
+          q("[data-hero='sheet']"),
+          { yPercent: 0, ease: EASE.inOut3, duration: 0.28 },
+          0.18
+        )
+
+        /* The convoy sets off at 0.32 — the sheet is about half way up, so
+           the rider comes in through the left edge onto a screen that is
+           still rising, rather than onto a finished blank one.
+
+           Rider and cards are one element. They were separate before, which
+           is why the rider sat still in the middle while the cards flew past
+           him: two tweens, two clocks, no relationship. One element means the
+           cards trail him because they are physically behind him, not
+           because a second tween was told to look like it.
+
+           Travel is a function of the viewport at both ends. `ease: "none"`
+           for the whole crossing — a vehicle under scroll control should
+           track the scroll exactly, and any easing reads as the wheels
+           slipping. */
+        .fromTo(
+          q("[data-hero='convoy']"),
+          { x: () => -(CONVOY_HALF + window.innerWidth / 2) },
+          {
+            x: () => CONVOY_HALF + window.innerWidth / 2,
+            ease: "none",
+            duration: 0.66,
+          },
+          0.32
+        );
+
+      /* The sheet is never lifted by a tween, and that is the point.
+
+         It used to animate to `yPercent: -100` over the last tenth of the
+         runway. What that uncovered was not the next section — it was the
+         hero's own background, still sitting under the sheet, for the whole
+         length of the lift. That was the blank screen after the cards.
+
+         The sheet now simply stays. When the runway runs out, the sticky
+         stage stops sticking and the whole hero — sheet included — scrolls
+         away under the page's own scroll, with the film section coming up
+         directly behind it. One less tween, and no gap that a tween could
+         accidentally open. */
 
       return () => {
         tl.kill();
@@ -146,8 +261,13 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         The runway — its height is the length of the exit sequence, and
         nothing more. Every extra viewport here is scroll the reader spends
         looking at a finished animation.
+
+        Desktop gets nearly twice the length because the white intermission
+        happens inside it: the sheet has to rise, the whole card train has to
+        pass, and the sheet has to leave. Phones never run that, so their
+        runway stays at the length of the original dissolve.
       */}
-      <div ref={runway} className="relative h-[168vh]">
+      <div ref={runway} className="relative h-[168vh] lg:h-[440vh]">
         {/* the stage — held by sticky, never re-laid-out */}
         <div className="sticky top-0 flex h-dvh items-center overflow-hidden">
           {/* ---------- artwork ---------- */}
@@ -198,6 +318,98 @@ export function Hero({ ready = true }: { ready?: boolean }) {
                 background: `radial-gradient(closest-side, ${NEXT_SCENE_BG} 55%, ${NEXT_SCENE_BG}e6 72%, transparent 88%)`,
               }}
             />
+
+            {/*
+              The white intermission.
+
+              A sheet, not an overlay: it is opaque and it arrives by moving,
+              which is what makes it read as a scene change rather than a
+              fade. It sits above the artwork and above the dissolve, so on
+              desktop it is what the reader sees for the whole middle of the
+              exit; on phones it never renders and the dissolve underneath is
+              still the handover.
+            */}
+            <div
+              data-hero="sheet"
+              className="absolute inset-0 z-20 hidden overflow-hidden bg-[#efece4] will-change-transform lg:block"
+            >
+              <div
+                className="absolute inset-0 opacity-70"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(rgba(36,29,24,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(36,29,24,0.045) 1px, transparent 1px)",
+                  backgroundSize: "76px 76px",
+                }}
+              />
+              {/* the road the rider is on */}
+              <div className="absolute inset-x-0 top-[68%] h-px bg-[linear-gradient(90deg,transparent,rgba(36,29,24,0.18)_12%,rgba(36,29,24,0.18)_88%,transparent)]" />
+
+              {/*
+                The convoy — rider and cards in one row, one element, one
+                tween. Centred with a negative margin rather than a transform,
+                because GSAP owns `x` here and a Tailwind `-translate-x-1/2`
+                would be wiped the moment the first tween ran.
+
+                Reading order left to right is 03, 02, 01, the statement, then
+                the rider: so on screen the rider arrives first and the cards
+                come through behind him in order.
+              */}
+              <div
+                data-hero="convoy"
+                className="absolute left-1/2 top-1/2 flex -translate-y-1/2 items-center gap-[150px] will-change-transform"
+                style={{ width: CONVOY_HALF * 2, marginLeft: -CONVOY_HALF }}
+              >
+                {[...VISION_CARDS].reverse().map((c) => (
+                  <div
+                    key={c.title}
+                    className={cn(
+                      "shrink-0 rounded-[26px] border border-[#241d18]/10 bg-white shadow-[0_26px_70px_-28px_rgba(36,29,24,0.42)]",
+                      c.lead ? "w-[430px] px-9 py-8" : "w-[310px] px-8 py-7"
+                    )}
+                  >
+                    {/* a rule rather than a filled chip: on a light card a
+                        block of colour competes with the words on it */}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "block h-[3px] rounded-full bg-[#e04e0f]",
+                        c.lead ? "w-14" : "w-8"
+                      )}
+                    />
+                    <span className="mt-5 block font-mono text-2xs font-semibold uppercase tracking-[0.2em] text-[#b93a0f]">
+                      {c.eyebrow}
+                    </span>
+                    <p
+                      className={cn(
+                        "mt-3 font-semibold leading-[1.16] tracking-[-0.02em] text-[#1b1713]",
+                        c.lead ? "text-[1.9rem]" : "text-[1.15rem]"
+                      )}
+                    >
+                      {c.title}
+                    </p>
+                  </div>
+                ))}
+
+                {/*
+                  The rider, at the head of the convoy. Two nested elements on
+                  purpose: the row carries the scroll-driven travel, the inner
+                  one carries the idle bob, and keeping them apart means
+                  neither tween ever clobbers the other's transform.
+                */}
+                <div className="relative z-10 -ml-[40px] size-[34rem] shrink-0">
+                  <div data-hero="bob" className="size-full">
+                    {/* mirrored — the source art faces left */}
+                    <Image
+                      src={scooty}
+                      alt=""
+                      sizes="544px"
+                      quality={78}
+                      className="h-full w-full -scale-x-100 object-contain drop-shadow-[0_36px_50px_rgba(36,29,24,0.28)]"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* ---------- copy ---------- */}
