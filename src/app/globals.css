@@ -587,6 +587,16 @@ html.theme-dark {
   }
 }
 
+/* vertical travelling tick for the hero scroll cue */
+@keyframes dm-cue-run {
+  0% {
+    transform: translateY(-110%);
+  }
+  100% {
+    transform: translateY(220%);
+  }
+}
+
 /* the mild diagonal sweep that passes across an arriving page */
 @keyframes dm-sweep {
   0% {

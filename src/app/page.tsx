@@ -1,28 +1,15 @@
 import type { Metadata } from "next";
 import { ChapterRail } from "@/components/motion/chapter-rail";
-import {
-  AgencyChapter,
-  AnalyticsChapter,
-  ApiChapter,
-  ColdChainChapter,
-  EnginesChapter,
-  RiderChapter,
-  WalletChapter,
-} from "@/components/sections/chapters";
-import { Control } from "@/components/sections/control";
+import { Scene, SceneBlock } from "@/components/motion/color-scene";
+import { ColdChainChapter, WalletChapter } from "@/components/sections/chapters";
 import { CTA } from "@/components/sections/cta";
 import { Ecosystem } from "@/components/sections/ecosystem";
-import { Engines } from "@/components/sections/engines";
 import { FAQ } from "@/components/sections/faq";
 import { Film } from "@/components/sections/film";
 import { HomeStage } from "@/components/sections/home-stage";
-import { OperationsFilm } from "@/components/sections/operations-film";
 import { Metrics } from "@/components/sections/metrics";
-import { NetworkStory } from "@/components/sections/network";
-import { OndcChapter } from "@/components/sections/ondc-dual";
-import { Problem } from "@/components/sections/problem";
+import { NetworkBurst } from "@/components/sections/network-burst";
 import { RoutingDecision } from "@/components/sections/routing-decision";
-import { Testimonials } from "@/components/sections/testimonials";
 import { faqs } from "@/lib/faqs";
 import { providers } from "@/lib/providers";
 import { site } from "@/lib/site";
@@ -62,12 +49,17 @@ const networkSchema = {
 };
 
 /**
- * Home reads as a film, not a brochure.
+ * Home, cut to half its previous length.
  *
- * Rhythm rule: never two consecutive bands of the same kind. An illustrated
- * chapter is always followed by an interactive diagram, a data strip or the
- * full-bleed dark ecosystem plate, so the page keeps changing texture as you
- * scroll and no screen looks like the one before it.
+ * Everything that explains *how* an engine works now lives on the page that
+ * owns it. Home keeps only what a first-time visitor has to see to
+ * understand the offer and want a demo: who we are, the network, how routing
+ * decides, the money gate, the moat, the proof, the ask.
+ *
+ * Colour rhythm: every band declares its own scene and consecutive bands
+ * never share one, so scrolling reads as moving between rooms.
+ *
+ *   ink → sand → crimson → ink(burst) → bone → ember → teal → slate → ink
  */
 export default function HomePage() {
   return (
@@ -85,43 +77,62 @@ export default function HomePage() {
         chapters={[
           { id: "film", label: "The film" },
           { id: "ecosystem", label: "Ecosystem" },
-          { id: "why", label: "The problem" },
           { id: "network", label: "Nine networks" },
           { id: "routing", label: "Smart routing" },
-          { id: "agency", label: "Own fleet" },
-          { id: "tariff", label: "Tariff & trigger" },
           { id: "wallet", label: "Wallet gate" },
-          { id: "ondc-intro", label: "ONDC" },
           { id: "cold", label: "Cold chain" },
-          { id: "compliance", label: "Rider compliance" },
-          { id: "analytics", label: "AI & data" },
-          { id: "operations-film", label: "In operation" },
-          { id: "api", label: "The API" },
+          { id: "metrics", label: "The numbers" },
           { id: "faq", label: "Questions" },
         ]}
       />
 
+      {/* 01 · ink — the opening */}
       <HomeStage />
-      <Film />
-      <Ecosystem />
-      <Problem />
-      <NetworkStory />
-      <RoutingDecision />
-      <AgencyChapter />
-      <EnginesChapter />
-      <Engines />
-      <WalletChapter />
-      <Metrics />
-      <OndcChapter />
-      <ColdChainChapter />
-      <RiderChapter />
-      <AnalyticsChapter />
-      <Control />
-      <OperationsFilm />
-      <ApiChapter />
-      <Testimonials />
-      <FAQ />
-      <CTA />
+
+      {/* 02 · sand — the film */}
+      <Scene scene="sand" id="film" padded={false} sweep="none">
+        <Film />
+      </Scene>
+
+      {/* 03 · crimson — the ecosystem plate */}
+      <Scene scene="crimson" id="ecosystem" padded={false} sweep="none">
+        <Ecosystem />
+      </Scene>
+
+      {/* 04 · ink — the pinned burst */}
+      <NetworkBurst />
+
+      {/* 05 · bone — the routing fork */}
+      <Scene scene="bone" id="routing" padded={false} sweep="none">
+        <RoutingDecision />
+      </Scene>
+
+      {/* 06 · ember — the money gate */}
+      <Scene scene="ember" padded={false} sweep="none">
+        <WalletChapter />
+      </Scene>
+
+      {/* 07 · teal — the moat */}
+      <Scene scene="teal" padded={false} sweep="none">
+        <ColdChainChapter />
+      </Scene>
+
+      {/* 08 · slate — the numbers */}
+      <Scene scene="slate" id="metrics" padded={false} sweep="none">
+        <Metrics />
+      </Scene>
+
+      {/* 09 · sand — questions */}
+      <Scene scene="sand" padded={false} sweep="none">
+        <FAQ />
+      </Scene>
+
+      {/* 10 · ink — the ask */}
+      <Scene scene="ink" padded={false} sweep="none">
+        <SceneBlock>
+          <CTA />
+        </SceneBlock>
+      </Scene>
     </>
   );
 }
