@@ -18,6 +18,12 @@ import { cn } from "@/lib/utils";
  * `mode` lets each route pick its own headline choreography — Platform builds
  * line by line, Technology assembles character by character, Industries
  * scatters. Same component, deliberately different feel per page.
+ *
+ * `visual` fills the column beside the copy. Without it the headline block is
+ * capped at `max-w-3xl` inside a much wider container, which left roughly
+ * two-fifths of every inner hero empty — the single largest piece of dead
+ * space on the site. With it the hero becomes a proper two-column spread and
+ * each page carries its own animation there.
  */
 export function PageHero({
   eyebrow,
@@ -27,6 +33,7 @@ export function PageHero({
   primary,
   secondary,
   children,
+  visual,
   className,
   align = "left",
   mode = "lines",
@@ -39,6 +46,8 @@ export function PageHero({
   primary?: { label: string; href: string };
   secondary?: { label: string; href: string };
   children?: React.ReactNode;
+  /** Rendered in the column beside the copy. Usually a canvas hero scene. */
+  visual?: React.ReactNode;
   className?: string;
   align?: "left" | "center";
   mode?: SplitMode;
@@ -66,6 +75,7 @@ export function PageHero({
       gsap.set(q("[data-ph='meta'] > *"), { opacity: 0, y: 10 });
       gsap.set(q("[data-ph='rule']"), { scaleX: 0, transformOrigin: "left" });
       gsap.set(q("[data-ph='child']"), { opacity: 0, y: 40 });
+      gsap.set(q("[data-ph='visual']"), { opacity: 0, scale: 0.94 });
 
       const tl = gsap.timeline({ defaults: { ease: EASE.out3 } });
 
@@ -90,6 +100,13 @@ export function PageHero({
           q("[data-ph='child']"),
           { opacity: 1, y: 0, duration: 1.1, ease: EASE.out4 },
           0.85
+        )
+        // The visual resolves alongside the headline rather than after it —
+        // it is scenery, and scenery that arrives late reads as a load.
+        .to(
+          q("[data-ph='visual']"),
+          { opacity: 1, scale: 1, duration: 1.3, ease: EASE.out4 },
+          0.4
         );
 
       // Parallax the whole copy block out as the page scrolls on.
@@ -122,9 +139,15 @@ export function PageHero({
 
       <div className="container-page relative">
         <div
+          className={cn(
+            visual && "grid items-center gap-14 lg:grid-cols-12 lg:gap-16"
+          )}
+        >
+        <div
           data-ph="copy"
           className={cn(
-            "flex max-w-3xl flex-col",
+            "flex flex-col",
+            visual ? "lg:col-span-7" : "max-w-3xl",
             align === "center" && "mx-auto items-center text-center"
           )}
         >
@@ -200,6 +223,13 @@ export function PageHero({
                   <span className="text-lg font-semibold tnum">{m.value}</span>
                 </div>
               ))}
+            </div>
+          ) : null}
+        </div>
+
+          {visual ? (
+            <div data-ph="visual" className="lg:col-span-5">
+              {visual}
             </div>
           ) : null}
         </div>

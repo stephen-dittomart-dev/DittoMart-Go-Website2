@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useMagnetic } from "@/hooks/use-motion";
 import { getIcon } from "@/lib/icon-registry";
 import { DUR, EASE, gsap, prefersReducedMotion, registerGsap } from "@/lib/motion";
+import { scenes, sceneVars, type SceneName } from "@/lib/scenes";
 import { navigation, type NavGroup } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -21,12 +22,30 @@ function Icon({ name, className }: { name?: string; className?: string }) {
   return <Cmp aria-hidden className={className} />;
 }
 
+/** Travel required before the bar commits to hiding or coming back. */
+const HIDE_AFTER = 60;
+const SHOW_AFTER = 50;
+/** Nothing hides inside the first screenful — there is nothing to reclaim. */
+const HIDE_FLOOR = 140;
+
 export function Header() {
   const [open, setOpen] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  /**
+   * The palette of whatever band is currently under the bar.
+   *
+   * The header is `fixed`, so it lives outside every `Scene` and inherits the
+   * root tokens no matter what is behind it — which is why its links went
+   * unreadable over the dark bands. Naming the scene here and handing it to
+   * `sceneVars` re-themes the entire bar, mega menu included, without a
+   * single component knowing about it. That is the whole point of the scene
+   * system: nothing hardcodes a colour, so overriding the tokens is enough.
+   */
+  const [scene, setScene] = useState<SceneName>("ink");
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const headerRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const pillRef = useRef<HTMLSpanElement>(null);
@@ -35,21 +54,65 @@ export function Header() {
   const ctaRef = useMagnetic<HTMLSpanElement>(0.22, 1.03);
   const { lockScroll } = useScrollControl();
 
-  /* ---------- scroll state: condense, and hide on downward scroll -------- */
+  /* ---------- scroll state: condense, hide, and adopt the band's palette -- */
   useEffect(() => {
     let last = window.scrollY;
+    /**
+     * Travel accumulated in the current direction, reset whenever it flips.
+     *
+     * The previous version compared each frame against the last one, so a
+     * single upward pixel — a trackpad settling, an elastic bounce, a pinned
+     * section nudging the offset — brought the whole bar back. Requiring a
+     * committed run of travel means it only moves when the reader means it.
+     */
+    let travel = 0;
     let ticking = false;
+
+    /**
+     * Which scene is under the bar.
+     *
+     * Hit-tested rather than tracked with observers: sections are stacked,
+     * sticky, sometimes pinned and sometimes overlapping, so "which one is at
+     * this exact point" is a question the browser can already answer
+     * correctly and an IntersectionObserver ladder cannot. Elements belonging
+     * to the header itself are skipped, which is what makes this keep working
+     * while the mega menu or the mobile drawer is covering the probe point.
+     */
+    const readScene = () => {
+      const header = headerRef.current;
+      if (!header) return;
+      const y = header.getBoundingClientRect().height + 8;
+      const stack = document.elementsFromPoint(
+        Math.round(window.innerWidth / 2),
+        Math.round(y)
+      );
+      for (const el of stack) {
+        if (header.contains(el)) continue;
+        const holder = (el as HTMLElement).closest?.<HTMLElement>("[data-scene]");
+        if (!holder) continue;
+        const name = holder.dataset.scene as SceneName | undefined;
+        if (name && name in scenes) setScene(name);
+        return;
+      }
+    };
 
     const update = () => {
       const y = window.scrollY;
-      setScrolled(y > 12);
-      // Only hide well past the hero, and never while a menu is open.
-      if (!open && !mobileOpen && y > 320) {
-        setHidden(y > last + 4);
-      } else {
-        setHidden(false);
-      }
+      const dy = y - last;
       last = y;
+      setScrolled(y > 12);
+
+      if (open || mobileOpen || y < HIDE_FLOOR) {
+        travel = 0;
+        setHidden(false);
+      } else {
+        if (dy > 0 !== travel > 0) travel = 0;
+        travel += dy;
+        if (travel > HIDE_AFTER) setHidden(true);
+        else if (travel < -SHOW_AFTER) setHidden(false);
+      }
+
+      readScene();
       ticking = false;
     };
 
@@ -61,7 +124,11 @@ export function Header() {
 
     update();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, [open, mobileOpen]);
 
   useEffect(() => {
@@ -171,13 +238,23 @@ export function Header() {
 
   return (
     <header
+      ref={headerRef}
+      /* The band's own tokens. Every colour in the bar — background, links,
+         borders, the pill, the mega menu — resolves through these, so this
+         one line is the whole contrast fix. */
+      style={sceneVars(scene)}
       className={cn(
         "fixed inset-x-0 top-0 z-50",
-        "transition-[transform,background-color,border-color,backdrop-filter] duration-500",
-        "[transition-timing-function:var(--ease-standard)]",
-        hidden ? "-translate-y-full" : "translate-y-0",
+        "transition-[transform,background-color,border-color,backdrop-filter,color]",
+        /* Leaving is brisk; returning is not. The bar is getting out of the
+           way when it hides, which should not be something you watch — but
+           coming back is the reader asking for it, and a slow return reads as
+           the interface responding rather than snapping. */
+        hidden
+          ? "-translate-y-full duration-[280ms] [transition-timing-function:var(--ease-exit)]"
+          : "translate-y-0 duration-[820ms] [transition-timing-function:var(--ease-out-expo)]",
         scrolled || open || mobileOpen
-          ? "border-b border-line bg-[color-mix(in_oklab,var(--bg)_78%,transparent)] backdrop-blur-xl backdrop-saturate-150"
+          ? "border-b border-line bg-[color-mix(in_oklab,var(--bg)_82%,transparent)] backdrop-blur-xl backdrop-saturate-150"
           : "border-b border-transparent bg-transparent"
       )}
     >
@@ -191,7 +268,11 @@ export function Header() {
       <div className="container-page">
         <div
           className={cn(
-            "flex items-center justify-between gap-6 transition-[height] duration-500",
+            /* `transition-colors` here so the palette hand-over eases rather
+               than flipping: CSS variables cannot be animated, but the
+               properties that read them can, and colour is inherited from
+               this row down. */
+            "flex items-center justify-between gap-6 text-fg transition-[height,color] duration-500",
             scrolled ? "h-[60px]" : "h-[68px]"
           )}
         >

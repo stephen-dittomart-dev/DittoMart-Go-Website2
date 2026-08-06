@@ -21,6 +21,7 @@ import {
   PlatformRails,
   PlatformSequence,
 } from "@/components/sections/platform-parts";
+import { EnginePipelineScene } from "@/components/visuals/hero-scenes";
 import { media } from "@/lib/media";
 
 export const metadata: Metadata = {
@@ -37,7 +38,8 @@ export const metadata: Metadata = {
  */
 export default function PlatformPage() {
   return (
-    <>
+    // Inner pages run the tighter section rhythm; see globals.css.
+    <div data-density="tight">
       <Scene scene="ink" padded={false} sweep="none">
         <PageHero
           eyebrow="Platform"
@@ -52,11 +54,10 @@ export default function PlatformPage() {
             { label: "Supply rails", value: "3" },
             { label: "Decision time", value: "<1s" },
           ]}
+          visual={<EnginePipelineScene />}
         >
           <MediaPlate
             entry={media.engines}
-            className="mx-auto max-w-2xl"
-            sizes="(max-width: 1024px) 92vw, 42rem"
             motion="rotate"
             priority
           />
@@ -128,6 +129,6 @@ export default function PlatformPage() {
           secondary={{ label: "Read the docs", href: "/developers" }}
         />
       </Scene>
-    </>
+    </div>
   );
 }

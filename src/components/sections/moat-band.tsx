@@ -12,19 +12,23 @@ import { sceneVars } from "@/lib/scenes";
 import { cn } from "@/lib/utils";
 
 /**
- * Wallet engine and the cold-chain moat, as one continuous green band.
+ * Wallet engine and the cold-chain moat, on one held stage.
  *
- * The two used to be separate sections in the same layout, one after the
- * other, which made the second read as a repeat of the first. They share a
- * format, so they now share a *stage*: the background is fixed for the whole
- * band, and the section pins while the content changes on it.
+ * The two share a format, so they now share a screen. The background is the
+ * moat's green and it does not move for the whole band; the page appears to
+ * stop while the content on top of it changes hands — copy leaving through
+ * the left edge, image leaving through the right, and the moat resolving in
+ * the gap they open. The four-card strip underneath never moves at all, only
+ * its readings swap.
  *
- * The handover is directional rather than a crossfade. Wallet's copy leaves
- * through the left edge and its plate leaves through the right, opening a gap
- * in the middle — and the moat's copy and plate resolve out of that gap. The
- * four-card strip underneath never moves at all; only the numbers on it swap,
- * which is what makes the band feel like one instrument changing readings
- * instead of two slides.
+ * Held with CSS `sticky` inside a tall runway, not a GSAP pin. A pin injects
+ * a spacer and rewrites the section's box, which is what threw the dimensions
+ * out when this was first attempted. Sticky is measured by the browser and
+ * cannot surprise the layout.
+ *
+ * Below 1024px the whole mechanism is dropped: the runway collapses to auto
+ * height, the states stack normally and nothing is absolutely positioned.
+ * There is not enough viewport to hold two states at once on a phone.
  */
 
 const WALLET = {
@@ -65,67 +69,68 @@ const MOAT = {
 
 export function MoatBand() {
   const root = useRef<HTMLElement>(null);
+  const runway = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<0 | 1>(0);
 
   useGSAP(
     () => {
       registerGsap();
       const el = root.current;
-      if (!el) return;
+      const track = runway.current;
+      if (!el || !track) return;
       const q = gsap.utils.selector(el);
-      const stage = el.querySelector<HTMLElement>("[data-moat-stage]");
-      if (!stage) return;
 
-      const reduced = prefersReducedMotion();
-      const small = window.innerWidth < 1024;
-
-      if (reduced || small) {
+      if (prefersReducedMotion() || window.innerWidth < 1024) {
         gsap.set(q("[data-moat]"), { clearProps: "all", autoAlpha: 1 });
         return;
       }
 
+      // the moat starts off-stage, sitting exactly where the wallet is
       gsap.set(q("[data-moat='b-copy'], [data-moat='b-art']"), {
         autoAlpha: 0,
-        scale: 0.86,
+        scale: 0.93,
       });
 
       const tl = gsap.timeline({
         scrollTrigger: {
-          trigger: el,
+          trigger: track,
           start: "top top",
-          end: "+=190%",
-          pin: stage,
-          pinSpacing: true,
+          end: "bottom bottom",
           scrub: 0.5,
-          anticipatePin: 1,
           onUpdate: (self) => setPhase(self.progress > 0.5 ? 1 : 0),
         },
       });
 
-      // wallet holds, then parts down the middle
-      tl.to({}, { duration: 0.55 })
+      tl
+        // 0 → 0.42 · the wallet simply holds
+        .to({}, { duration: 0.42 })
+
+        // 0.42 → 0.62 · copy leaves left, image leaves right
         .to(
           q("[data-moat='a-copy']"),
-          { xPercent: -68, autoAlpha: 0, filter: "blur(10px)", ease: "power2.in" },
-          0.55
+          { xPercent: -74, autoAlpha: 0, filter: "blur(9px)", ease: "power2.in", duration: 0.2 },
+          0.42
         )
         .to(
           q("[data-moat='a-art']"),
-          { xPercent: 78, autoAlpha: 0, rotate: 8, ease: "power2.in" },
-          0.55
+          { xPercent: 82, autoAlpha: 0, rotate: 6, ease: "power2.in", duration: 0.2 },
+          0.42
         )
-        // the moat resolves out of the gap they left
+
+        // 0.56 → 0.78 · the moat resolves into the gap they left
         .to(
           q("[data-moat='b-copy']"),
-          { autoAlpha: 1, scale: 1, duration: 0.5, ease: EASE.out4 },
-          0.9
+          { autoAlpha: 1, scale: 1, duration: 0.22, ease: EASE.out3 },
+          0.56
         )
         .to(
           q("[data-moat='b-art']"),
-          { autoAlpha: 1, scale: 1, duration: 0.5, ease: EASE.out4 },
-          0.95
+          { autoAlpha: 1, scale: 1, duration: 0.22, ease: EASE.out3 },
+          0.6
         )
-        .to({}, { duration: 0.5 });
+
+        // 0.78 → 1 · the moat holds
+        .to({}, { duration: 0.22 });
 
       return () => {
         tl.scrollTrigger?.kill();
@@ -141,121 +146,115 @@ export function MoatBand() {
     <section
       ref={root}
       id="wallet"
+      data-scene="teal"
       style={sceneVars("teal")}
       className="relative isolate scroll-mt-24 bg-bg text-fg"
     >
-      <div
-        data-moat-stage
-        className="relative flex min-h-dvh flex-col justify-center overflow-hidden"
-      >
-        {/* the fixed green world — held for the whole band */}
-        <div aria-hidden className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-0 bg-bg" />
-          <div className="bg-grid absolute inset-0 opacity-50" />
-          <div
-            className="absolute -top-1/4 left-1/2 h-[80vh] w-[90vw] -translate-x-1/2 rounded-full blur-[130px]"
-            style={{
-              background:
-                "radial-gradient(closest-side, var(--spot-1), transparent 72%)",
-            }}
-          />
-        </div>
-
-        <div className="container-page relative flex-1 py-24">
-          <div className="relative grid min-h-[62vh] items-center gap-12 lg:grid-cols-12 lg:gap-16">
-            {/* ---------- state A · wallet ---------- */}
+      {/* runway — only tall on desktop, where the hold happens */}
+      <div ref={runway} className="relative lg:h-[250vh]">
+        {/* stage — held by sticky */}
+        <div className="lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col lg:justify-center lg:overflow-hidden">
+          {/* the green world, fixed for the whole band */}
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-0 bg-bg" />
+            <div className="bg-grid absolute inset-0 opacity-50" />
             <div
-              data-moat="a-copy"
-              className="lg:col-span-6 lg:col-start-1 lg:row-start-1"
-            >
-              <Eyebrow icon={<Wallet className="size-3" />}>
-                {WALLET.eyebrow}
-              </Eyebrow>
-              <SplitHeading
-                as="h2"
-                mode="bounce"
-                text={WALLET.title}
-                className="mt-6 text-3xl font-semibold leading-[1.08] tracking-[-0.03em] md:text-4xl"
-              />
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-fg-muted md:text-lg">
-                {WALLET.body}
-              </p>
-              <Points items={WALLET.points} />
-            </div>
+              className="absolute -top-1/4 left-1/2 h-[80vh] w-[90vw] -translate-x-1/2 rounded-full blur-[130px]"
+              style={{
+                background:
+                  "radial-gradient(closest-side, var(--spot-1), transparent 72%)",
+              }}
+            />
+          </div>
 
-            <div
-              data-moat="a-art"
-              className="lg:col-span-6 lg:col-start-7 lg:row-start-1"
-            >
-              <MediaPlate
-                src={media.wallet.src}
-                alt={media.wallet.alt}
-                caption={media.wallet.caption}
-                glow="primary"
-                motion="jump"
-                spin
-              />
-            </div>
+          <div className="container-page relative py-24 lg:flex-1 lg:py-0">
+            {/*
+              Both states occupy the same box. On desktop the second is
+              absolutely positioned over the first so neither can push the
+              other around; below lg it simply follows in normal flow.
+            */}
+            <div className="relative lg:min-h-[64vh]">
+              {/* ---------- state A · wallet ---------- */}
+              <div className="grid items-center gap-12 lg:absolute lg:inset-0 lg:grid-cols-12 lg:gap-16">
+                <div data-moat="a-copy" className="lg:col-span-6">
+                  <Eyebrow icon={<Wallet className="size-3" />}>
+                    {WALLET.eyebrow}
+                  </Eyebrow>
+                  <SplitHeading
+                    as="h2"
+                    mode="bounce"
+                    text={WALLET.title}
+                    className="mt-6 text-3xl font-semibold leading-[1.08] tracking-[-0.03em] md:text-4xl"
+                  />
+                  <p className="mt-5 max-w-xl text-base leading-relaxed text-fg-muted md:text-lg">
+                    {WALLET.body}
+                  </p>
+                  <Points items={WALLET.points} />
+                </div>
 
-            {/* ---------- state B · the moat ---------- */}
-            <div
-              data-moat="b-copy"
-              className="lg:col-span-6 lg:col-start-1 lg:row-start-1"
-            >
-              <Badge variant="accent" size="sm">
-                <Snowflake aria-hidden className="size-3" />
-                {MOAT.eyebrow}
-              </Badge>
-              <h2 className="mt-6 text-3xl font-semibold leading-[1.08] tracking-[-0.03em] md:text-4xl">
-                {MOAT.title}
-              </h2>
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-fg-muted md:text-lg">
-                {MOAT.body}
-              </p>
-              <Points items={MOAT.points} />
-            </div>
+                <div data-moat="a-art" className="lg:col-span-6">
+                  <MediaPlate
+                    entry={media.wallet}
+                    glow="primary"
+                    motion="jump"
+                    spin
+                  />
+                </div>
+              </div>
 
-            <div
-              data-moat="b-art"
-              className="lg:col-span-6 lg:col-start-7 lg:row-start-1"
-            >
-              <MediaPlate
-                src={media.coldChain.src}
-                alt={media.coldChain.alt}
-                caption={media.coldChain.caption}
-                glow="accent"
-                motion="swing"
-              />
+              {/* ---------- state B · the moat ---------- */}
+              <div className="mt-24 grid items-center gap-12 lg:absolute lg:inset-0 lg:mt-0 lg:grid-cols-12 lg:gap-16">
+                <div data-moat="b-copy" className="lg:col-span-6">
+                  <Badge variant="accent" size="sm">
+                    <Snowflake aria-hidden className="size-3" />
+                    {MOAT.eyebrow}
+                  </Badge>
+                  <h2 className="mt-6 text-3xl font-semibold leading-[1.08] tracking-[-0.03em] md:text-4xl">
+                    {MOAT.title}
+                  </h2>
+                  <p className="mt-5 max-w-xl text-base leading-relaxed text-fg-muted md:text-lg">
+                    {MOAT.body}
+                  </p>
+                  <Points items={MOAT.points} />
+                </div>
+
+                <div data-moat="b-art" className="lg:col-span-6">
+                  <MediaPlate
+                    entry={media.coldChain}
+                    glow="accent"
+                    motion="swing"
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* ---------- the strip that never moves ---------- */}
-        <div className="relative grid grid-cols-2 gap-px border-t border-line bg-line lg:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label} className="bg-bg px-6 py-7 text-center">
-              <div
-                key={`${phase}-${s.value}`}
-                className="text-2xl font-semibold tracking-[-0.03em] tnum md:text-3xl"
-                style={{ animation: "dm-step-in 420ms var(--ease-out-expo)" }}
-              >
-                {s.value}
+          {/* ---------- the strip that never moves ---------- */}
+          <div className="relative grid grid-cols-2 gap-px border-t border-line bg-line lg:grid-cols-4">
+            {stats.map((s) => (
+              <div key={s.label} className="bg-bg px-6 py-7 text-center">
+                <div
+                  key={`${phase}-${s.value}`}
+                  className="text-2xl font-semibold tracking-[-0.03em] tnum md:text-3xl"
+                  style={{ animation: "dm-step-in 420ms var(--ease-out-expo)" }}
+                >
+                  {s.value}
+                </div>
+                <div
+                  key={`${phase}-${s.label}`}
+                  className="mt-2 font-mono text-2xs uppercase tracking-[0.14em] text-fg-subtle"
+                  style={{ animation: "dm-step-in 520ms var(--ease-out-expo)" }}
+                >
+                  {s.label}
+                </div>
               </div>
-              <div
-                key={`${phase}-${s.label}`}
-                className="mt-2 font-mono text-2xs uppercase tracking-[0.14em] text-fg-subtle"
-                style={{ animation: "dm-step-in 520ms var(--ease-out-expo)" }}
-              >
-                {s.label}
-              </div>
-            </div>
-          ))}
+            ))}
 
-          {/* which half of the band you are in */}
-          <div className="pointer-events-none absolute inset-x-0 -top-px flex">
+            {/* how far through the band you are */}
             <span
+              aria-hidden
               className={cn(
-                "h-px bg-primary transition-all duration-700",
+                "pointer-events-none absolute inset-x-0 -top-px h-px bg-primary transition-all duration-700",
                 phase === 0 ? "w-1/2" : "w-full"
               )}
             />

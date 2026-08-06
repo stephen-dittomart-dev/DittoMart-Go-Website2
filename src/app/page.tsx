@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { ChapterRail } from "@/components/motion/chapter-rail";
 import { Scene, SceneBlock } from "@/components/motion/color-scene";
-import { ColdChainChapter, WalletChapter } from "@/components/sections/chapters";
 import { CTA } from "@/components/sections/cta";
 import { Ecosystem } from "@/components/sections/ecosystem";
 import { FAQ } from "@/components/sections/faq";
 import { Film } from "@/components/sections/film";
 import { HomeStage } from "@/components/sections/home-stage";
 import { Metrics } from "@/components/sections/metrics";
+import { MoatBand } from "@/components/sections/moat-band";
 import { NetworkBurst } from "@/components/sections/network-burst";
 import { RoutingDecision } from "@/components/sections/routing-decision";
 import { faqs } from "@/lib/faqs";
@@ -79,8 +79,7 @@ export default function HomePage() {
           { id: "ecosystem", label: "Ecosystem" },
           { id: "network", label: "Nine networks" },
           { id: "routing", label: "Smart routing" },
-          { id: "wallet", label: "Wallet gate" },
-          { id: "cold", label: "Cold chain" },
+          { id: "wallet", label: "Wallet & the moat" },
           { id: "metrics", label: "The numbers" },
           { id: "faq", label: "Questions" },
         ]}
@@ -89,8 +88,9 @@ export default function HomePage() {
       {/* 01 · ink — the opening */}
       <HomeStage />
 
-      {/* 02 · sand — the film */}
-      <Scene scene="sand" id="film" padded={false} sweep="none">
+      {/* 02 · sand — the film. Picks up mid-zoom from the hero's dissolve and
+          pulls back into place, so the handover has no gap in it. */}
+      <Scene scene="sand" id="film" padded={false} sweep="none" enter="zoom">
         <Film />
       </Scene>
 
@@ -107,17 +107,10 @@ export default function HomePage() {
         <RoutingDecision />
       </Scene>
 
-      {/* 06 · ember — the money gate */}
-      <Scene scene="ember" padded={false} sweep="none">
-        <WalletChapter />
-      </Scene>
+      {/* 06 · teal — the wallet gate and the moat, one held green stage */}
+      <MoatBand />
 
-      {/* 07 · teal — the moat */}
-      <Scene scene="teal" padded={false} sweep="none">
-        <ColdChainChapter />
-      </Scene>
-
-      {/* 08 · slate — the numbers */}
+      {/* 07 · slate — the numbers */}
       <Scene scene="slate" id="metrics" padded={false} sweep="none">
         <Metrics />
       </Scene>

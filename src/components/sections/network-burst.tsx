@@ -160,6 +160,7 @@ export function NetworkBurst() {
     <section
       ref={root}
       id="network"
+      data-scene="ink"
       style={sceneVars("ink")}
       className="relative isolate scroll-mt-24 bg-bg text-fg"
     >
@@ -206,39 +207,42 @@ export function NetworkBurst() {
           ))}
         </div>
 
-        {/* the copy holds the centre */}
+        {/*
+          The copy holds the centre.
+
+          The network name is now the largest thing on the screen and it sits
+          above the fixed heading rather than under it. This section exists to
+          say nine specific names — so the name that is currently in focus
+          should be what the eye lands on, and the framing line should sit
+          quietly beneath it doing its job once.
+        */}
         <div className="container-page relative z-10 text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-3.5 py-1.5 font-mono text-2xs uppercase tracking-[0.16em] text-fg-muted backdrop-blur-md">
             The network
           </span>
 
-          <SplitHeading
-            as="h2"
-            mode="lines"
-            text="Nine delivery networks. You integrate with one."
-            highlight={["Nine", "networks."]}
-            className="mx-auto mt-7 max-w-4xl text-3xl font-semibold leading-[1.06] tracking-[-0.035em] md:text-6xl"
-          />
-
-          {/* the network currently in focus */}
-          <div className="mx-auto mt-10 flex min-h-[7rem] max-w-xl flex-col items-center">
+          {/* ---- the network currently in focus, at display size ---- */}
+          <div className="mx-auto mt-8 flex min-h-[9.5rem] max-w-5xl flex-col items-center md:min-h-[13rem]">
             <span
               key={current.id}
-              className="font-mono text-2xs uppercase tracking-[0.2em] text-primary"
-              style={{ animation: "dm-step-in 420ms var(--ease-out-expo)" }}
+              className="font-mono text-2xs uppercase tracking-[0.24em] text-primary"
+              style={{ animation: "dm-step-in 380ms var(--ease-out-expo)" }}
             >
-              {String(active + 1).padStart(2, "0")} / {String(providers.length).padStart(2, "0")}
+              {String(active + 1).padStart(2, "0")} /{" "}
+              {String(providers.length).padStart(2, "0")}
             </span>
+
             <p
               key={`${current.id}-n`}
-              className="mt-3 text-2xl font-semibold tracking-[-0.02em] md:text-3xl"
+              className="mt-3 text-[2.4rem] font-semibold leading-[1.02] tracking-[-0.04em] sm:text-6xl lg:text-[5.2rem]"
               style={{ animation: "dm-step-in 520ms var(--ease-out-expo)" }}
             >
               {current.name}
             </p>
+
             <p
               key={`${current.id}-t`}
-              className="mt-2 text-sm text-fg-muted md:text-base"
+              className="mt-4 text-base text-fg-muted md:text-lg"
               style={{ animation: "dm-step-in 620ms var(--ease-out-expo)" }}
             >
               {current.tagline} · {current.coverage}
@@ -257,6 +261,15 @@ export function NetworkBurst() {
               />
             ))}
           </div>
+
+          {/* ---- the framing line, now secondary ---- */}
+          <SplitHeading
+            as="h2"
+            mode="lines"
+            text="Nine delivery networks. You integrate with one."
+            highlight={["Nine", "networks."]}
+            className="mx-auto mt-10 max-w-xl text-base font-medium leading-[1.35] tracking-[-0.01em] text-fg-muted md:text-lg"
+          />
         </div>
       </div>
 

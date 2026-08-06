@@ -105,7 +105,7 @@ export default function NotFound() {
             className="flex items-center justify-center text-[7rem] font-semibold leading-none tracking-[-0.06em] md:text-[10rem]"
           >
             {["4", "0", "4"].map((d, i) => (
-              <span key={i} data-nf="digit" className="text-gradient-brand">
+              <span key={i} data-nf="digit" className="text-primary">
                 {d}
               </span>
             ))}

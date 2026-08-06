@@ -2,10 +2,9 @@
 
 import { useGSAP } from "@gsap/react";
 import { ArrowRight, Terminal } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRef } from "react";
-import { media } from "@/lib/media";
+import { RoutingMesh } from "@/components/motion/routing-mesh";
 import { SplitHeading } from "@/components/motion/split-heading";
 import { Button } from "@/components/ui/button";
 import { useMagnetic } from "@/hooks/use-motion";
@@ -24,11 +23,17 @@ const NEXT_SCENE_BG = "#e7dfd2";
  * section's box, which is what threw the dimensions out last time. Sticky is
  * native, measured by the browser, and cannot surprise the layout.
  *
+ * The backdrop is the routing mesh — a live canvas rather than a photograph.
+ * The section's whole claim is that nine networks resolve into one graph, and
+ * a drawn graph says that in a way a picture of a van cannot. It also gives
+ * the exit something real to zoom into: you fly through the mesh rather than
+ * across a flat plate.
+ *
  * The exit is one continuous move rather than a cut. The copy leaves through
- * the left edge, the artwork pushes toward the viewer and keeps growing, and
- * as it passes the frame it dissolves from the middle outward — the next
- * section is already the colour underneath that dissolve, so it appears to
- * emerge from the centre of the image rather than scroll up from below.
+ * the left edge, the mesh pushes toward the viewer and keeps growing, and as
+ * it passes the frame it dissolves from the middle outward — the next section
+ * is already the colour underneath that dissolve, so it appears to emerge
+ * from the centre of the graph rather than scroll up from below.
  */
 export function Hero({ ready = true }: { ready?: boolean }) {
   const root = useRef<HTMLElement>(null);
@@ -77,14 +82,9 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         .to(q("[data-hero='note']"), { opacity: 1, duration: 0.5 }, 1.25)
         .to(q("[data-hero='cue']"), { opacity: 1, y: 0, duration: 0.5 }, 1.4);
 
-      // idle drift so the frame is alive before anyone scrolls
-      gsap.to(q("[data-hero='art']"), {
-        xPercent: 1.5,
-        duration: 16,
-        ease: "sine.inOut",
-        repeat: -1,
-        yoyo: true,
-      });
+      // The mesh supplies its own idle life — rotation, breathing, packets —
+      // so the old drifting tween on the art wrapper is gone. Two sources of
+      // ambient motion on the same element read as drift, not intent.
 
       /* ---------- the exit, scrubbed across the runway ---------- */
       const exit = gsap.timeline({
@@ -105,19 +105,26 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         )
         .to(q("[data-hero='cue']"), { autoAlpha: 0, ease: "none" }, 0)
 
-        // 2 · the artwork zooms the whole way through
-        .to(q("[data-hero='art']"), { scale: 2.45, ease: "power1.in" }, 0)
+        // 2 · the mesh zooms the whole way through. Less far than the photo
+        //     went: a canvas magnified past ~2× is visibly resampled, and the
+        //     graph already gains depth from its own perspective divide.
+        .to(q("[data-hero='art']"), { scale: 2.05, ease: "power1.in" }, 0)
         .to(q("[data-hero='scrim']"), { autoAlpha: 0, ease: "none" }, 0.1)
 
         // 3 · it dissolves from the middle outward, and the next colour is
-        //     already sitting behind that dissolve
+        //     already sitting behind that dissolve.
+        //
+        //     The dissolve is timed to land at the very end of the runway.
+        //     It used to finish early, which left a stretch of scroll where
+        //     the iris had already covered everything — a flat empty screen
+        //     with nothing happening — before the next section arrived.
         .fromTo(
           q("[data-hero='iris']"),
           { autoAlpha: 0, scale: 0.05 },
-          { autoAlpha: 1, scale: 1, ease: "power2.in", duration: 0.55 },
-          0.45
+          { autoAlpha: 1, scale: 1, ease: "power2.in", duration: 0.6 },
+          0.4
         )
-        .to(q("[data-hero='art']"), { autoAlpha: 0, ease: "none", duration: 0.2 }, 0.85);
+        .to(q("[data-hero='art']"), { autoAlpha: 0, ease: "none", duration: 0.2 }, 0.8);
 
       return () => {
         tl.kill();
@@ -129,39 +136,56 @@ export function Hero({ ready = true }: { ready?: boolean }) {
   );
 
   return (
-    <section ref={root} style={sceneVars("ink")} className="relative bg-bg text-fg">
-      {/* the runway — its height is the length of the exit sequence */}
-      <div ref={runway} className="relative h-[230vh]">
+    <section
+      ref={root}
+      data-scene="ink"
+      style={sceneVars("ink")}
+      className="relative bg-bg text-fg"
+    >
+      {/*
+        The runway — its height is the length of the exit sequence, and
+        nothing more. Every extra viewport here is scroll the reader spends
+        looking at a finished animation.
+      */}
+      <div ref={runway} className="relative h-[168vh]">
         {/* the stage — held by sticky, never re-laid-out */}
         <div className="sticky top-0 flex h-dvh items-center overflow-hidden">
           {/* ---------- artwork ---------- */}
           <div aria-hidden className="absolute inset-0 overflow-hidden">
+            {/* the ink floor the graph is drawn on */}
+            <div className="absolute inset-0 bg-[#07090d]" />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(ellipse 58% 62% at 62% 48%, rgba(244,102,31,0.20), transparent 70%), radial-gradient(ellipse 40% 45% at 78% 78%, rgba(91,217,203,0.10), transparent 72%)",
+              }}
+            />
+            <div className="bg-grid absolute inset-0 opacity-40" />
+
             <div
               data-hero="art"
               className="absolute inset-0 will-change-transform"
             >
-              <Image
-                src={media.hero.src}
-                alt=""
-                fill
-                priority
-                sizes="100vw"
-                placeholder="blur"
-                className="scale-[1.06] object-cover object-[52%_58%]"
+              <RoutingMesh
+                className="absolute inset-0 h-full w-full"
+                originX={0.63}
+                originY={0.47}
               />
             </div>
 
             {/*
-              Readability. A calm overall darkening plus a strong left column
-              under the copy. The words sit on near-solid ink; by the middle
-              of the frame the scrim is gone and the artwork reads normally.
+              Readability. The mesh is bright and additive, so the copy column
+              still needs a floor under it — but far less of one than the
+              photograph needed. The gradient clears by the middle of the
+              frame, which is where the graph is densest and should be seen.
             */}
             <div
               data-hero="scrim"
               className="absolute inset-0"
               style={{
                 background:
-                  "linear-gradient(90deg, rgba(7,10,15,0.94) 0%, rgba(7,10,15,0.9) 24%, rgba(7,10,15,0.72) 38%, rgba(7,10,15,0.4) 50%, rgba(7,10,15,0.14) 62%, rgba(7,10,15,0.05) 74%), linear-gradient(180deg, rgba(7,10,15,0.55) 0%, rgba(7,10,15,0.12) 30%, rgba(7,10,15,0.2) 70%, rgba(7,10,15,0.75) 100%)",
+                  "linear-gradient(90deg, rgba(7,9,13,0.9) 0%, rgba(7,9,13,0.82) 26%, rgba(7,9,13,0.5) 42%, rgba(7,9,13,0.16) 56%, transparent 70%), linear-gradient(180deg, rgba(7,9,13,0.5) 0%, transparent 26%, transparent 72%, rgba(7,9,13,0.7) 100%)",
               }}
             />
 

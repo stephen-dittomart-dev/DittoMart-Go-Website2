@@ -98,7 +98,10 @@ export function Section({
   return (
     <section
       id={id}
-      className={cn("relative py-24 md:py-32", className)}
+      /* `dm-section` is a hook, not a style. It lets a page opt into the
+         tighter vertical rhythm (see `[data-density="tight"]` in globals)
+         without every call site growing a prop. It does nothing on its own. */
+      className={cn("dm-section relative py-24 md:py-32", className)}
       {...props}
     >
       {children}

@@ -26,6 +26,7 @@ export function Scene({
   sticky = true,
   sweep = "left",
   padded = true,
+  enter = "none",
 }: {
   scene: SceneName;
   children: ReactNode;
@@ -36,6 +37,13 @@ export function Scene({
   /** Direction content leaves in. `none` holds it in place. */
   sweep?: "left" | "right" | "none";
   padded?: boolean;
+  /**
+   * `zoom` — the scene's content starts oversized and settles back to size as
+   * the band arrives, so it reads as the camera pulling back out of whatever
+   * came before it rather than as a panel sliding up from below. Used on the
+   * band that follows the hero, which hands over mid-zoom.
+   */
+  enter?: "none" | "zoom";
 }) {
   const root = useRef<HTMLElement>(null);
 
@@ -44,6 +52,32 @@ export function Scene({
       registerGsap();
       const el = root.current;
       if (!el || prefersReducedMotion()) return;
+
+      /* ---------- the pull-back ---------- */
+      if (enter === "zoom") {
+        const stage = el.querySelector<HTMLElement>("[data-scene-enter]");
+        if (stage) {
+          gsap.fromTo(
+            stage,
+            { scale: 1.28, autoAlpha: 0, filter: "blur(14px)" },
+            {
+              scale: 1,
+              autoAlpha: 1,
+              filter: "blur(0px)",
+              ease: "none",
+              scrollTrigger: {
+                trigger: el,
+                start: "top bottom",
+                end: "top 22%",
+                scrub: 0.45,
+                // A lingering transform would become a containing block for
+                // anything sticky further down this scene.
+                onLeave: () => gsap.set(stage, { clearProps: "transform,filter" }),
+              },
+            }
+          );
+        }
+      }
 
       const blocks = gsap.utils.toArray<HTMLElement>("[data-scene-block]", el);
       if (!blocks.length) return;
@@ -80,7 +114,7 @@ export function Scene({
         }
       });
     },
-    { scope: root, dependencies: [sweep] }
+    { scope: root, dependencies: [sweep, enter] }
   );
 
   return (
@@ -124,7 +158,13 @@ export function Scene({
         </div>
       ) : null}
 
-      {children}
+      {enter === "zoom" ? (
+        <div data-scene-enter className="will-change-transform">
+          {children}
+        </div>
+      ) : (
+        children
+      )}
     </section>
   );
 }

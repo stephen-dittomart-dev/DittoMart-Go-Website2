@@ -131,8 +131,20 @@
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Layout */
-  --container-page: 1240px;
+  /* Layout.
+
+     The page container used to cap at 1240px, which meant a 1920px monitor
+     showed 340px of empty background down each side and a 2560px monitor
+     showed 660px. That is not a wide-screen layout, it is a fixed-width page
+     floating in a gutter — and it looked different on every desktop, which is
+     exactly what the gutter draws attention to.
+
+     The cap is now well beyond any normal display, so the width is set by the
+     fluid padding below rather than by a fixed number. Readability is not at
+     risk from this: prose blocks carry their own `max-w-xl`/`2xl`/`3xl`, so
+     only grids, tables and media actually take the extra room — which is the
+     content that wanted it. */
+  --container-page: 2400px;
   --container-narrow: 860px;
 }
 
@@ -328,6 +340,19 @@ html.theme-dark {
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    /*
+      A hard guarantee that nothing can ever produce a sideways scrollbar —
+      a decorative blob that overhangs an edge, a wide table, a transform
+      mid-flight.
+
+      `clip`, not `hidden`. They look identical here but `overflow: hidden`
+      makes the element a scroll container, and a scroll container between a
+      `position: sticky` element and the viewport silently kills the sticky.
+      This site holds the hero, the moat band and the chapter rail with
+      sticky, so `hidden` would break all three. `clip` does not create a
+      scroll container.
+    */
+    overflow-x: clip;
   }
 
   /* Lenis owns scrolling when active; disable native smooth to avoid fighting */
@@ -437,36 +462,54 @@ html.theme-dark {
   width: 100%;
   max-width: var(--container-page);
   margin-inline: auto;
-  padding-inline: 1.25rem;
-  @media (width >= 48rem) {
-    padding-inline: 2rem;
+  /*
+    One fluid rule instead of two breakpoints. The gutter grows with the
+    viewport rather than jumping at 768px, so the margin looks proportionate
+    at every width instead of correct at two of them:
+
+      360px  → 20px   (the clamp floor)
+      768px  → 25px
+      1024px → 33px
+      1280px → 41px
+      1440px → 46px
+      1920px → 61px
+      2560px → 82px
+      3440px → 96px   (the clamp ceiling)
+
+    The 3.2vw factor is chosen so no width ends up with *less* content room
+    than the old fixed 1.25rem/2rem pair gave it — the naive 4.5vw first tried
+    here would have shrunk the content area at 1280px while fixing 1920px.
+
+    Below the floor the padding stops shrinking, so a 320px phone still has a
+    readable inset rather than text against the bezel.
+  */
+  padding-inline: clamp(1.25rem, 3.2vw, 6rem);
+}
+
+/* --------------------------------------------------------------------------
+   Tighter vertical rhythm for the inner pages.
+
+   `Section` pads 6rem, and 8rem from md up. Two stacked sections therefore
+   put 16rem of empty colour between their content — fine on home, which has
+   few bands and wants the air, but the inner pages carry six or seven bands
+   each and the gaps start reading as blank slabs rather than as breathing
+   room.
+
+   Scoped by an ancestor attribute so home is untouched. `[data-…] .dm-section`
+   is (0,1,1) against the utility's (0,1,0), so it wins without !important.
+   -------------------------------------------------------------------------- */
+[data-density="tight"] .dm-section {
+  padding-block: 4.5rem;
+}
+@media (width >= 48rem) {
+  [data-density="tight"] .dm-section {
+    padding-block: 6rem;
   }
 }
 
-@utility text-gradient {
-  background-image: linear-gradient(
-    100deg,
-    var(--fg) 0%,
-    var(--fg) 30%,
-    color-mix(in oklab, var(--primary) 70%, var(--fg)) 62%,
-    color-mix(in oklab, var(--accent) 80%, var(--fg)) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-@utility text-gradient-brand {
-  background-image: linear-gradient(
-    100deg,
-    var(--color-ember-400) 0%,
-    var(--color-teal-400) 55%,
-    var(--color-crimson-400) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
+/* Gradient text utilities were removed. Emphasis is now a solid,
+   scene-aware colour (text-primary) so it contrasts correctly on every
+   band instead of only on the one it was designed against. */
 
 @utility glass {
   background-color: var(--glass);

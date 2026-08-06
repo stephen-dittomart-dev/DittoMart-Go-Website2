@@ -129,11 +129,7 @@ export function HomeIntro({ onDone }: { onDone: () => void }) {
           },
           "+=0.45"
         )
-        .to(
-          [mark, letters],
-          { y: -26, duration: 0.55, ease: EASE.inOut },
-          "<"
-        );
+        .to([mark, letters], { y: -26, duration: 0.55, ease: EASE.inOut }, "<");
 
       return () => {
         tl.kill();
@@ -206,7 +202,7 @@ export function HomeIntro({ onDone }: { onDone: () => void }) {
                 <span
                   key={`b-${i}`}
                   data-intro-letter
-                  className="text-gradient-brand inline-block text-[15vw] font-extrabold tracking-[-0.05em] sm:text-[11vw] md:text-[8rem]"
+                  className="inline-block text-[15vw] font-extrabold tracking-[-0.05em] text-[var(--color-ember-600)] sm:text-[11vw] md:text-[8rem]"
                 >
                   {ch}
                 </span>

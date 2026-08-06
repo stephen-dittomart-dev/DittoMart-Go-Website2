@@ -102,7 +102,14 @@ export function LegalPage({
   );
 
   return (
-    <>
+    /*
+      Legal pages run on the root tokens rather than a `Scene`, which left
+      them as the one place with no `data-scene` for the header to read — so
+      the bar kept whichever palette it picked up on the way here. Declaring
+      the page's own scheme fixes that without changing how the page looks:
+      `bone` is the light scene these pages were already effectively using.
+    */
+    <div data-scene="bone">
       <section className="relative isolate overflow-hidden border-b border-line pb-16 pt-36 md:pt-44">
         <AmbientBackdrop variant="quiet" />
         <div className="container-page relative">
@@ -234,6 +241,6 @@ export function LegalPage({
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

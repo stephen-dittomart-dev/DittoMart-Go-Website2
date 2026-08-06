@@ -50,7 +50,15 @@ export function SplitHeading({
   scroll = true,
   start = "top 86%",
   highlight,
-  highlightClassName = "text-gradient-brand",
+  /**
+   * Solid, and scene-aware. `text-primary` resolves to whatever the
+   * surrounding scene has declared as its primary, so a highlighted phrase
+   * always lands in a colour that contrasts with the band it sits on —
+   * ember on ink, gold on crimson, deep ember on sand. A single gradient
+   * could not do that: it looked correct on one background and muddy on the
+   * next, and across a long page it read as decoration rather than emphasis.
+   */
+  highlightClassName = "text-primary",
   onReady,
   play = true,
 }: {

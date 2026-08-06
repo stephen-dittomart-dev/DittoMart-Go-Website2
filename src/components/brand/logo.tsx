@@ -53,9 +53,21 @@ export function Logo({
       <LogoMark className="size-9" priority={priority} />
       {showWordmark ? (
         <span className="flex flex-col leading-none">
+          {/*
+            Two steps brighter than the ink-on-paper values this started with
+            (crimson 700 → 500, ember 600 → 400).
+
+            The wordmark sits in a header that now takes its colours from
+            whatever band is behind it, so it has to hold on a near-black ink
+            scene and on a pale bone one. The 600/700 shades were chosen for
+            paper and simply vanished into the dark scenes; these two are
+            bright enough to carry there while still clearing contrast on the
+            light ones. They are fixed rather than token-driven on purpose —
+            a wordmark that changes hue per section is not a wordmark.
+          */}
           <span className="text-[0.95rem] font-bold tracking-[0.01em]">
-            <span className="text-[var(--color-crimson-700)]">DITTO</span>
-            <span className="text-[var(--color-ember-600)]">MART</span>
+            <span className="text-[var(--color-crimson-500)]">DITTO</span>
+            <span className="text-[var(--color-ember-400)]">MART</span>
             <span className="ml-1 font-semibold text-fg">Go</span>
           </span>
           <span className="mt-[3px] font-mono text-[7.5px] font-medium uppercase tracking-[0.2em] text-fg-subtle">

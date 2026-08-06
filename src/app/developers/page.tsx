@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/layout/page-hero";
 import { Scene } from "@/components/motion/color-scene";
-import { MediaPlate } from "@/components/motion/scene";
 import { ApiChapter } from "@/components/sections/chapters";
 import { CTA } from "@/components/sections/cta";
 import {
@@ -12,8 +11,8 @@ import {
   DevWebhooks,
 } from "@/components/sections/developers-parts";
 import { CodeWindow } from "@/components/visuals/code-window";
+import { RequestLogScene } from "@/components/visuals/hero-scenes";
 import { createOrderResponse, createOrderSamples } from "@/lib/code-samples";
-import { media } from "@/lib/media";
 
 export const metadata: Metadata = {
   title: "Developers",
@@ -24,7 +23,8 @@ export const metadata: Metadata = {
 
 export default function DevelopersPage() {
   return (
-    <>
+    // Inner pages run the tighter section rhythm; see globals.css.
+    <div data-density="tight">
       <Scene scene="ink" padded={false} sweep="none">
         <PageHero
           eyebrow="Developers"
@@ -39,24 +39,19 @@ export default function DevelopersPage() {
             { label: "Webhook events", value: "9" },
             { label: "Median response", value: "142ms" },
           ]}
+          visual={<RequestLogScene />}
         >
-          <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-12">
-            <div className="lg:col-span-7">
-              <CodeWindow
-                samples={createOrderSamples}
-                response={createOrderResponse}
-                title="Create a delivery"
-              />
-            </div>
-            <div className="lg:col-span-5">
-              <MediaPlate
-                entry={media.apiGateway}
-                sizes="(max-width: 1024px) 92vw, 30rem"
-                motion="flip"
-                priority
-              />
-            </div>
-          </div>
+          {/*
+            The gateway plate that used to sit beside the code window has
+            moved out. The hero now carries a live request log in its right
+            column, and a still photograph of the same subject next to it read
+            as two illustrations of one idea.
+          */}
+          <CodeWindow
+            samples={createOrderSamples}
+            response={createOrderResponse}
+            title="Create a delivery"
+          />
         </PageHero>
       </Scene>
 
@@ -89,6 +84,6 @@ export default function DevelopersPage() {
           secondary={{ label: "See the platform", href: "/platform" }}
         />
       </Scene>
-    </>
+    </div>
   );
 }

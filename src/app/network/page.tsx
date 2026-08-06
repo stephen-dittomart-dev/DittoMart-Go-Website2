@@ -7,6 +7,7 @@ import { CTA } from "@/components/sections/cta";
 import { NetworkGrid, NetworkStory } from "@/components/sections/network";
 import { OndcChapter } from "@/components/sections/ondc-dual";
 import { RoutingDecision } from "@/components/sections/routing-decision";
+import { NetworkOrbitScene } from "@/components/visuals/hero-scenes";
 import { media } from "@/lib/media";
 import { providers, providerStats } from "@/lib/providers";
 
@@ -20,7 +21,8 @@ export const metadata: Metadata = {
 
 export default function NetworkPage() {
   return (
-    <>
+    // Inner pages run the tighter section rhythm; see globals.css.
+    <div data-density="tight">
       <Scene scene="ink" padded={false} sweep="none">
         <PageHero
           eyebrow="Delivery network"
@@ -35,12 +37,11 @@ export default function NetworkPage() {
             { label: "Supply rails", value: "3" },
             { label: "Contracts you sign", value: "1" },
           ]}
+          visual={<NetworkOrbitScene />}
         >
           <MediaPlate
             entry={media.ondc}
             glow="accent"
-            className="mx-auto max-w-2xl"
-            sizes="(max-width: 1024px) 92vw, 42rem"
             motion="flip"
             priority
           />
@@ -75,6 +76,6 @@ export default function NetworkPage() {
           secondary={{ label: "Read the API docs", href: "/developers" }}
         />
       </Scene>
-    </>
+    </div>
   );
 }

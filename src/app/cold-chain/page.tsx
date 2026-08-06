@@ -7,6 +7,7 @@ import { ColdChainChapter } from "@/components/sections/chapters";
 import { ColdChain } from "@/components/sections/cold-chain";
 import { ColdChainProtocol } from "@/components/sections/cold-chain-protocol";
 import { CTA } from "@/components/sections/cta";
+import { ColdTraceScene } from "@/components/visuals/hero-scenes";
 import { media } from "@/lib/media";
 
 export const metadata: Metadata = {
@@ -18,7 +19,8 @@ export const metadata: Metadata = {
 
 export default function ColdChainPage() {
   return (
-    <>
+    // Inner pages run the tighter section rhythm; see globals.css.
+    <div data-density="tight">
       <Scene scene="teal" padded={false} sweep="none">
         <PageHero
           eyebrow="Cold chain"
@@ -33,12 +35,11 @@ export default function ColdChainPage() {
             { label: "Reading interval", value: "30s" },
             { label: "Unverifiable handovers", value: "0" },
           ]}
+          visual={<ColdTraceScene />}
         >
           <MediaPlate
             entry={media.coldChain}
             glow="accent"
-            className="mx-auto max-w-2xl"
-            sizes="(max-width: 1024px) 92vw, 42rem"
             motion="swing"
             priority
           />
@@ -84,6 +85,6 @@ export default function ColdChainPage() {
           secondary={{ label: "See the network", href: "/network" }}
         />
       </Scene>
-    </>
+    </div>
   );
 }

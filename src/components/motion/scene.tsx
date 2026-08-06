@@ -107,7 +107,10 @@ export function MediaPlate({
   spin = false,
   variant: variantProp,
   aspect = "square",
-  sizes = "(max-width: 1024px) 92vw, 46vw",
+  /* Matches the width ceiling below: the plate never exceeds 44rem, so
+     requesting 46vw on a wide screen would fetch an encode twice the size of
+     anything that can be displayed. */
+  sizes = "(max-width: 1024px) 92vw, (max-width: 1600px) 46vw, 44rem",
 }: {
   /**
    * Preferred form — pass the whole manifest entry and the plate takes its
@@ -213,7 +216,30 @@ export function MediaPlate({
   if (!src) return null;
 
   return (
-    <div ref={root} className={cn("relative [perspective:1400px]", className)}>
+    <div
+      ref={root}
+      className={cn(
+        "relative mx-auto w-full [perspective:1400px]",
+        /*
+          A ceiling on how large a plate may get.
+
+          The plate has no intrinsic width — it fills its column. That was
+          fine while the page container capped at 1240px, but the container is
+          now fluid, so a half-width square plate on a 1920px screen grew to
+          roughly 850px across and, being square, 850px tall: taller than the
+          viewport, and far larger than the copy sitting beside it.
+
+          Capping here rather than at each call site means the plates stay in
+          proportion everywhere at once. `wide` gets more room because a 16/10
+          crop at the same width is only two-thirds the height.
+
+          Call sites can still override: `cn` puts their className last, so an
+          explicit `max-w-2xl` continues to win.
+        */
+        aspect === "wide" ? "max-w-[44rem]" : "max-w-[32rem]",
+        className
+      )}
+    >
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-4 -bottom-8 -top-8 rounded-[2rem] opacity-80 blur-[70px]"

@@ -48,9 +48,61 @@ export function ScrollProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     registerGsap();
 
+    /* ----------------------------------------------------------------------
+       Land at the top on reload.
+
+       A refresh was dropping the reader into the middle of the nine-network
+       burst. Two things conspire:
+
+       · Browsers default `history.scrollRestoration` to "auto", so a reload
+         re-applies the previous scroll offset. Nothing here ever turned
+         that off.
+       · ScrollTrigger keeps its own per-URL scroll memory, and the burst is
+         the one section still held by a real GSAP `pin`. The pin injects a
+         spacer, so the document is shorter at the moment the offset is
+         restored than it was when the offset was recorded — the restored
+         pixel position therefore lands somewhere it did not come from, and
+         once the pin builds, that somewhere is inside the burst. That is
+         why it was always this section and never a different one.
+
+       Both are switched to manual, and the position is forced to the top at
+       each of the three moments the layout settles — mount, the 350ms
+       settle, and `load` — because a single reset at mount is undone by
+       whichever restoration fires afterwards.
+
+       Two things it deliberately does not fight: a real hash in the URL
+       (`/#network` has to work), and a reader who has already started
+       scrolling. `userScrolled` latches on the first genuine input, after
+       which the resets stop.
+       ---------------------------------------------------------------------- */
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    ScrollTrigger.clearScrollMemory("manual");
+
+    const hasHash = window.location.hash.length > 1;
+    let userScrolled = false;
+    const markScrolled = () => {
+      userScrolled = true;
+    };
+    window.addEventListener("wheel", markScrolled, { passive: true });
+    window.addEventListener("touchstart", markScrolled, { passive: true });
+    window.addEventListener("keydown", markScrolled);
+
+    const toTop = () => {
+      if (hasHash || userScrolled) return;
+      window.scrollTo(0, 0);
+      lenisRef.current?.scrollTo(0, { immediate: true, force: true });
+    };
+    toTop();
+
+    const detachScrollWatch = () => {
+      window.removeEventListener("wheel", markScrolled);
+      window.removeEventListener("touchstart", markScrolled);
+      window.removeEventListener("keydown", markScrolled);
+    };
+
     if (prefersReducedMotion()) {
       setReady(true);
-      return;
+      return detachScrollWatch;
     }
 
     const lenis = new Lenis({
@@ -62,6 +114,8 @@ export function ScrollProvider({ children }: { children: ReactNode }) {
       wheelMultiplier: 0.95,
     });
     lenisRef.current = lenis;
+    // Lenis keeps its own idea of the current offset, seeded at construction.
+    toTop();
 
     lenis.on("scroll", ScrollTrigger.update);
 
@@ -70,13 +124,17 @@ export function ScrollProvider({ children }: { children: ReactNode }) {
     gsap.ticker.lagSmoothing(0);
 
     // Layout settles in three waves: hydration, webfonts, then full load.
+    // `refresh()` re-measures every pin, which is the step that used to leave
+    // the page parked mid-burst — so the reset runs after it, not before.
     const t = window.setTimeout(() => {
       lenis.resize();
       ScrollTrigger.refresh();
+      toTop();
     }, 350);
     const onLoad = () => {
       lenis.resize();
       ScrollTrigger.refresh();
+      toTop();
     };
     document.fonts?.ready.then(onLoad).catch(() => {});
     window.addEventListener("load", onLoad);
@@ -86,6 +144,7 @@ export function ScrollProvider({ children }: { children: ReactNode }) {
     return () => {
       window.clearTimeout(t);
       window.removeEventListener("load", onLoad);
+      detachScrollWatch();
       gsap.ticker.remove(tick);
       lenis.destroy();
       lenisRef.current = null;
