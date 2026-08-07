@@ -325,7 +325,7 @@ export function NetworkBurst() {
                 key={providers[i]?.id ?? i}
                 data-mark
                 style={{ zIndex: 10 + i }}
-                className="absolute bottom-[13%] left-1/2 -ml-[7.5vw] w-[15vw] will-change-transform"
+                className="absolute bottom-[13%] left-1/2 -ml-[7.5vw] w-[15vw] opacity-0 will-change-transform"
               >
                 <figure className="overflow-hidden rounded-2xl border border-white/12 bg-white shadow-[0_30px_60px_-24px_rgba(0,0,0,0.75)]">
                   {/*
@@ -566,7 +566,11 @@ function Carton() {
   return (
     <div
       data-box
-      className="absolute bottom-[7%] left-1/2 -ml-[5.5vw] w-[11vw] will-change-transform [perspective:800px]"
+      /* `opacity-0` as a class, not an inline style: GSAP writes opacity
+         inline and therefore always wins it back, but the class is in the
+         server HTML — so the carton is invisible on the first painted frame
+         instead of sitting at the bottom of the section until hydration. */
+      className="absolute bottom-[7%] left-1/2 -ml-[5.5vw] w-[11vw] opacity-0 will-change-transform [perspective:800px]"
     >
       <div data-carton className="relative [transform-style:preserve-3d]">
         {/* the lid plane, laid back so we look down into the box */}

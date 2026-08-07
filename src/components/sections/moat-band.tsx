@@ -81,7 +81,12 @@ export function MoatBand() {
       const q = gsap.utils.selector(el);
 
       if (prefersReducedMotion() || window.innerWidth < 1024) {
+        // Also clears the `lg:opacity-0` pre-hydration guard on state B, which
+        // otherwise leaves it invisible on a desktop with reduced motion on.
         gsap.set(q("[data-moat]"), { clearProps: "all", autoAlpha: 1 });
+        gsap.set(q("[data-moat='b-copy']")[0]?.parentElement ?? [], {
+          opacity: 1,
+        });
         return;
       }
 
@@ -89,6 +94,11 @@ export function MoatBand() {
       gsap.set(q("[data-moat='b-copy'], [data-moat='b-art']"), {
         autoAlpha: 0,
         scale: 0.93,
+      });
+      // Hand the pre-hydration guard over to the two children that the
+      // timeline actually drives, so the wrapper stops holding them down.
+      gsap.set(q("[data-moat='b-copy']")[0]?.parentElement ?? [], {
+        opacity: 1,
       });
 
       const tl = gsap.timeline({
@@ -203,7 +213,18 @@ export function MoatBand() {
               </div>
 
               {/* ---------- state B · the moat ---------- */}
-              <div className="mt-24 grid items-center gap-12 lg:absolute lg:inset-0 lg:mt-0 lg:grid-cols-12 lg:gap-16">
+              {/*
+                `lg:opacity-0` covers the gap between first paint and
+                hydration. On desktop this state is absolutely positioned on
+                top of the wallet, so until GSAP hides it the reader sees both
+                sets of copy printed over each other. GSAP writes opacity
+                inline a moment later and wins it back.
+
+                Scoped to `lg` on purpose: below that the two states stack in
+                normal flow and both are meant to be read, so hiding this one
+                there would lose real content if the script never ran.
+              */}
+              <div className="mt-24 grid items-center gap-12 lg:absolute lg:inset-0 lg:mt-0 lg:grid-cols-12 lg:gap-16 lg:opacity-0">
                 <div data-moat="b-copy" className="lg:col-span-6">
                   <Badge variant="accent" size="sm">
                     <Snowflake aria-hidden className="size-3" />

@@ -148,7 +148,10 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         centre of the hero — from first paint until the reader scrolls, which
         is exactly the "it just shows up in the hero" problem.
       */
-      gsap.set(q("[data-hero='sheet']"), { yPercent: 100 });
+      gsap.set(q("[data-hero='sheet']"), {
+        yPercent: 100,
+        visibility: "visible",
+      });
       gsap.set(q("[data-hero='convoy']"), {
         x: () => -(CONVOY_LEAD + window.innerWidth / 2),
       });
@@ -428,7 +431,27 @@ export function Hero({ ready = true }: { ready?: boolean }) {
             */}
             <div
               data-hero="sheet"
-              className="absolute inset-0 z-20 hidden overflow-hidden bg-[#efece4] will-change-transform lg:block"
+              /*
+                Hidden until hydration, with `visibility` — never with a
+                transform.
+
+                Server-rendered markup has no GSAP in it, so until hydration
+                fires the `gsap.set` above, the sheet sits at its natural
+                position: `inset-0`, opaque, covering the whole hero. That is
+                the second of white intermission every reload used to show.
+
+                The first attempt at this seeded `translate3d(0,100%,0)`
+                inline, which broke the band outright. GSAP reads an existing
+                transform back from the *computed* style, where a percentage
+                has already been resolved to pixels — so it recorded `y: 800px`
+                and then added `yPercent: 100` on top. The sheet ended up two
+                screens down and never came back.
+
+                `visibility` is not part of the transform, so there is nothing
+                to double-count. GSAP switches it on in the same set that parks
+                the sheet, and both land before the first post-hydration paint.
+              */
+              className="invisible absolute inset-0 z-20 hidden overflow-hidden bg-[#efece4] will-change-transform lg:block"
             >
               <div
                 className="absolute inset-0 opacity-70"
