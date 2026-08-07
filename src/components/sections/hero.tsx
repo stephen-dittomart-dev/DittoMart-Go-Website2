@@ -37,35 +37,20 @@ const VISION_CARDS = [
 ];
 
 /**
- * Convoy geometry, in px. Shared by the layout and by the tween, so the
- * travel can never drift out of step with the thing travelling.
+ * The two fixed points of the crossing, as timeline positions.
  *
- * The row is `CONVOY_HALF * 2` wide and centred with a negative margin, so
- * everything below is measured from the middle of the row:
+ * `CLIMB` is where the film band's overlap begins — one viewport before the
+ * end of a 520vh runway. Three things are made to coincide there: the tail
+ * line lands dead centre, the last card meets the box, and the next band
+ * starts rising. Everything else about the train is solved backwards from it.
  *
- *   `CONVOY_LEAD` — how far right of the row's left edge the rider's back
- *     wheel sits. Start the travel at `-(LEAD + half a viewport)` and the
- *     rider is exactly one pixel off the left edge of the screen; use the
- *     row's full half-width instead and there is a dead run of empty scroll
- *     before anything appears.
- *
- * The travel runs the full width: from one half-viewport left of the rider to
- * one half-viewport right of the last card, so the convoy enters completely
- * and leaves completely. It used to stop with the last card centred, which
- * meant the train sat frozen mid-screen for the last fifth of the runway.
- *
- * The last card passes the middle of the screen at roughly 78% of that travel
- * — `(1445 + LEAD + vw/2) / (HALF + LEAD + vw)`, which lands between 0.74 and
- * 0.82 across every plausible viewport. The convoy's duration below is set so
- * that mark falls where the film band starts climbing, and the two then run
- * together to the end.
- *
- * Both numbers grew when the statement joined the head of the row: the box has
- * to be wide enough to hold every item, and the lead has to reach the
- * *rightmost* edge of the content — which is now the wordmark, not the rider.
+ * There are no geometry constants any more. The old pair described a single
+ * flex row whose declared width had to be kept in step by hand every time an
+ * item was added or resized — which it was not, twice. Positions are measured
+ * from the DOM instead, so the layout is the single source of truth.
  */
-const CONVOY_HALF = 1600;
-const CONVOY_LEAD = 1480;
+const CLIMB = 0.872;
+const TRAIN_IN = 0.333;
 
 /**
  * Home hero.
@@ -118,8 +103,8 @@ export function Hero({ ready = true }: { ready?: boolean }) {
 
     // The first line goes hard and the other two chase it. Equal speeds read
     // as a list animating; a lead and two followers reads as one gesture.
-    const at = [0, 0.05, 0.11];
-    const dur = [0.05, 0.07, 0.07];
+    const at = [0, 0.033, 0.073];
+    const dur = [0.033, 0.047, 0.047];
     lines.forEach((line, i) => {
       exit.to(
         line,
@@ -156,9 +141,10 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         yPercent: 100,
         visibility: "visible",
       });
-      gsap.set(q("[data-hero='convoy']"), {
-        x: () => -(CONVOY_LEAD + window.innerWidth / 2),
-      });
+      // Parked far off the left edge from the first frame, for the same
+      // reason the sheet is: server HTML has no GSAP in it.
+      gsap.set(q("[data-hero='rider']"), { x: -3000 });
+      gsap.set(q("[data-hero='train']"), { x: -8000 });
 
       if (prefersReducedMotion()) {
         gsap.set(q("[data-hero]"), { opacity: 1, y: 0, clearProps: "all" });
@@ -240,7 +226,7 @@ export function Hero({ ready = true }: { ready?: boolean }) {
       addLineSweep();
 
       exit
-        .to(q("[data-hero='cue']"), { autoAlpha: 0, ease: "none", duration: 0.1 }, 0)
+        .to(q("[data-hero='cue']"), { autoAlpha: 0, ease: "none", duration: 0.067 }, 0)
 
         /* Everything else in the column fades where it stands. It follows the
            last line out rather than travelling with it — the headline is what
@@ -253,15 +239,15 @@ export function Hero({ ready = true }: { ready?: boolean }) {
           q(
             "[data-hero='badge'], [data-hero='lede'], [data-hero='cta'], [data-hero='note'], [data-hero='copy'] h1"
           ),
-          { autoAlpha: 0, filter: "blur(10px)", ease: "power1.in", duration: 0.09 },
-          0.16
+          { autoAlpha: 0, filter: "blur(10px)", ease: "power1.in", duration: 0.06 },
+          0.107
         )
 
         // 2 · the mesh zooms. Less far than the photo went: a canvas
         //     magnified past ~2× is visibly resampled, and the graph already
         //     gains depth from its own perspective divide.
-        .to(q("[data-hero='art']"), { scale: 2.05, ease: "power1.in", duration: 0.4 }, 0)
-        .to(q("[data-hero='scrim']"), { autoAlpha: 0, ease: "none", duration: 0.16 }, 0.06)
+        .to(q("[data-hero='art']"), { scale: 2.05, ease: "power1.in", duration: 0.267 }, 0)
+        .to(q("[data-hero='scrim']"), { autoAlpha: 0, ease: "none", duration: 0.107 }, 0.04)
 
         /* 3 · the dissolve — phones only.
 
@@ -272,8 +258,8 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         .fromTo(
           q("[data-hero='iris']"),
           { autoAlpha: 0, scale: 0.05 },
-          { autoAlpha: 1, scale: 1, ease: "power2.in", duration: 0.58 },
-          0.42
+          { autoAlpha: 1, scale: 1, ease: "power2.in", duration: 0.7 },
+          0.3
         )
 
         /* ---------------------------------------------------------------
@@ -289,43 +275,191 @@ export function Hero({ ready = true }: { ready?: boolean }) {
            --------------------------------------------------------------- */
         .to(
           q("[data-hero='sheet']"),
-          { yPercent: 0, ease: EASE.inOut3, duration: 0.28 },
-          0.3
+          { yPercent: 0, ease: EASE.inOut3, duration: 0.187 },
+          0.2
         )
 
-        /* The convoy sets off at 0.44 — exactly half way through the sheet's
-           rise, so the rider enters the left edge onto a screen that is still
-           moving rather than onto a finished blank one.
+        /* ---------------------------------------------------------------
+           5 · the crossing, in three parts
 
-           Rider and cards are one element. They were separate before, which
-           is why the rider sat still in the middle while the cards flew past
-           him: two tweens, two clocks, no relationship. One element means the
-           cards trail him because they are physically behind him, not because
-           a second tween was told to look like it.
+           The wordmark sweeps through and leaves. The rider follows, reaches
+           the right edge and stops. The train keeps coming, and each card is
+           folded into the box on his back as it arrives.
 
-           It runs the whole way out, and the duration is what synchronises it
-           with the band climbing over it.
+           Everything below is measured, not written. Three things have to
+           land on the same frame — the tail line dead centre, the last card
+           meeting the box, and the film band starting its climb — and the
+           only way to guarantee that is to solve for it rather than to tune
+           three numbers until they look close.
 
-           0.44 + 0.75 × 0.49 ≈ 0.81, which is exactly where the film band's
-           overlap begins. So the last card reaches the middle of the screen
-           on the same frame the next section starts rising, and from there
-           both keep going — the card carries on to the right edge underneath
-           while the band climbs over it. Ending the travel early instead left
-           the train parked mid-screen for the last fifth of the runway.
+           The travel is linear, so the position of the train at any point in
+           the timeline is a straight line and can be inverted: given where a
+           card must be, we can say exactly when. `CLIMB` is where the film
+           band's overlap begins; everything else is derived from it.
+           --------------------------------------------------------------- */
+        .add(() => {}, 0.44);
 
-           Both ends are functions of the viewport; `ease: "none"` because a
-           vehicle under scroll control should track the scroll exactly, and
-           easing reads as wheelspin. */
-        .fromTo(
-          q("[data-hero='convoy']"),
-          { x: () => -(CONVOY_LEAD + window.innerWidth / 2) },
-          {
-            x: () => CONVOY_HALF + window.innerWidth / 2,
-            ease: "none",
-            duration: 0.49,
-          },
-          0.44
+      const rider = q("[data-hero='rider']")[0];
+      const train = q("[data-hero='train']")[0];
+      const tail = q("[data-tail]")[0];
+      const cards = q("[data-card]");
+
+      if (rider && train && tail && cards.length) {
+        const W = window.innerWidth;
+        const riderW = rider.offsetWidth;
+
+        /* The mouth of the pannier, as a fraction of the rider's width.
+
+           The art is mirrored, so the box that was on the right of the
+           photograph is on the left of what the reader sees. Its near edge —
+           the one a card would be posted through — sits about a fifth in. That
+           edge is the slot: everything a card does is measured from it. */
+        const SLOT_IN = riderW * 0.2;
+
+        const centreOf = (el: HTMLElement) => el.offsetLeft + el.offsetWidth / 2;
+        const first = cards[0] as HTMLElement;
+
+        /* The gap between the closing line and the last card is computed, not
+           written.
+
+           It is the one number that decides where the rider can park. Three
+           things must land on the same frame — the line dead centre, the last
+           card meeting the box, the film band starting its climb — and that is
+           only true if the box sits as far right of centre as the last card
+           sits ahead of the line. Fix the gap in CSS and the rider has to park
+           wherever that happens to put him, which is what left a wide margin
+           down the right of the frame.
+
+           So it is solved the other way round: decide the rider belongs near
+           the edge, and derive the gap that puts him there. On a wide monitor
+           that opens a generous run between the last card and the line; on a
+           narrow one the floor keeps it from collapsing, and the rider parks a
+           little further in instead. */
+        const rightOf = (el: HTMLElement) => el.offsetLeft + el.offsetWidth;
+
+        /* The rider parks near the right edge — chosen, not derived. */
+        const riderParked = 0.96 * W - riderW;
+        const slotAt = riderParked + SLOT_IN;
+
+        /* The gap between the last card and the closing line is solved, not
+           picked.
+
+           What has to be true: the moment the last card has *finished* going
+           in — its left edge past the slot — is the moment the line reaches
+           the middle of the frame. The line sits behind the card by the gap,
+           so that condition fixes the gap exactly:
+
+               gap = slot − centre − half the line's width
+
+           Which on a wide monitor opens a long, deliberately empty run
+           between the last card and the line, and on a narrow one a shorter
+           one — in both cases exactly as long as it needs to be. Picking a
+           number instead is what left the line arriving while the card was
+           still being posted. */
+        first.style.marginLeft = `${Math.max(
+          120,
+          Math.round(slotAt - W / 2 - tail.offsetWidth / 2)
+        )}px`;
+
+        const cTail = centreOf(tail);
+
+        /* The train's travel. `x0` puts every item off the left edge;
+           `xAtClimb` is where it must be at CLIMB for the closing line to be
+           centred. `x1` keeps that same straight line running to the end of
+           the runway, so nothing freezes once the band is over it. */
+        const x0 = -train.scrollWidth;
+        const xAtClimb = W / 2 - cTail;
+        const span = (CLIMB - TRAIN_IN) / (1 - TRAIN_IN);
+        const x1 = x0 + (xAtClimb - x0) / span;
+
+        const RIDE_IN = 0.307;
+        const RIDE_DUR = 0.2;
+
+        exit
+          // the rider — wordmark and all — in, and then not moved again until
+          // the very end
+          .fromTo(
+            rider,
+            { x: -(riderW + 60) },
+            { x: riderParked, ease: "power2.out", duration: RIDE_DUR },
+            RIDE_IN
+          )
+          // the train: one straight line the whole way
+          .fromTo(
+            train,
+            { x: x0 },
+            { x: x1, ease: "none", duration: 1 - TRAIN_IN },
+            TRAIN_IN
+          );
+
+        /* Each card is posted through the slot.
+
+           The card is not scaled away and not rotated. It is *clipped* — its
+           right edge onward is hidden — and the clip is pinned to the slot, so
+           what the reader sees is a card sliding into a letterbox while the
+           rest of it is still outside. Nothing about the card changes; only
+           how much of it is still in the world.
+
+           That is why it is exact rather than eased. The train travels at a
+           constant rate, so the moment a card's right edge crosses the slot
+           and the moment its left edge does are both solvable, and between
+           them the hidden fraction is precisely the fraction that has passed:
+
+               t_in   → right edge at the slot → inset(0 0% 0 0)
+               t_out  → left edge at the slot  → inset(0 100% 0 0)
+
+           Linear in between, so the boundary never drifts off the slot by a
+           pixel at any scroll position. An eased clip would slide the seam
+           around and give the illusion away instantly.
+
+           The small \`scaleX\` is the only liberty: anchored at the left edge it
+           squeezes the card by six per cent as it goes in, which is what makes
+           it read as being pressed through an opening rather than merely
+           passing behind something. Six per cent is small enough that the seam
+           stays on the slot, and the rider's artwork covers that region in any
+           case — he is \`z-30\`, the train is \`z-10\`.
+
+           Solved per card, not staggered by a fixed interval: the gaps in the
+           row are not equal, so an even stagger would post some of them into
+           thin air. */
+        const timeAt = (trainX: number) =>
+          TRAIN_IN + (1 - TRAIN_IN) * ((trainX - x0) / (x1 - x0));
+
+        cards.forEach((card) => {
+          const el = card as HTMLElement;
+          const tIn = timeAt(slotAt - rightOf(el));
+          const tOut = timeAt(slotAt - el.offsetLeft);
+
+          exit.fromTo(
+            el,
+            { clipPath: "inset(0% 0% 0% 0%)", scaleX: 1 },
+            {
+              clipPath: "inset(0% 100% 0% 0%)",
+              scaleX: 0.94,
+              transformOrigin: "0% 50%",
+              ease: "none",
+              duration: Math.max(0.01, tOut - tIn),
+            },
+            tIn
+          );
+        });
+
+        /* He sets off again on the frame the last card finishes going in.
+
+           That is `CLIMB` — the same instant the closing line lands in the
+           middle and the film band starts its climb, because the gap above was
+           solved to make all three the same moment. Nothing here is timed
+           against anything else; they are one number.
+
+           This is the only tween that touches him after he parks, which is why
+           he is genuinely stationary in between rather than being animated to
+           hold still. */
+        exit.to(
+          rider,
+          { x: W + riderW + 40, ease: "power1.in", duration: 0.12 },
+          CLIMB
         );
+      }
 
       /* The sheet is never lifted by a tween, and that is the point.
 
@@ -368,7 +502,7 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         pass, and the sheet has to leave. Phones never run that, so their
         runway stays at the length of the original dissolve.
       */}
-      <div ref={runway} className="relative h-[168vh] lg:h-[520vh]">
+      <div ref={runway} className="relative h-[168vh] lg:h-[780vh]">
         {/* the stage — held by sticky, never re-laid-out */}
         <div className="sticky top-0 flex h-dvh items-center overflow-hidden">
           {/* ---------- artwork ---------- */}
@@ -405,8 +539,20 @@ export function Hero({ ready = true }: { ready?: boolean }) {
               data-hero="scrim"
               className="absolute inset-0"
               style={{
-                background:
-                  "linear-gradient(90deg, rgba(7,9,13,0.9) 0%, rgba(7,9,13,0.82) 26%, rgba(7,9,13,0.5) 42%, rgba(7,9,13,0.16) 56%, transparent 70%), linear-gradient(180deg, rgba(7,9,13,0.5) 0%, transparent 26%, transparent 72%, rgba(7,9,13,0.7) 100%)",
+                background: [
+                  /* 1 · a warm lift low on the left, so the column has a
+                        light source instead of being an even slab */
+                  "radial-gradient(ellipse 62% 78% at 6% 82%, rgba(224,78,15,0.16), transparent 68%)",
+                  /* 2 · a crimson bloom high on the left, the logo's other
+                        colour, kept far enough from the copy to stay behind it */
+                  "radial-gradient(ellipse 46% 52% at 2% 12%, rgba(180,22,27,0.20), transparent 70%)",
+                  /* 3 · the column itself — warm near-black rather than the
+                        neutral one it was, so it belongs to the same page as
+                        the ember in the graph beside it */
+                  "linear-gradient(94deg, rgba(21,10,13,0.95) 0%, rgba(24,12,15,0.9) 24%, rgba(23,12,16,0.7) 40%, rgba(20,10,14,0.3) 54%, transparent 70%)",
+                  /* 4 · top and bottom, so the copy never runs into an edge */
+                  "linear-gradient(180deg, rgba(10,6,8,0.55) 0%, transparent 26%, transparent 70%, rgba(10,6,8,0.72) 100%)",
+                ].join(", "),
               }}
             />
 
@@ -469,26 +615,169 @@ export function Hero({ ready = true }: { ready?: boolean }) {
               <div className="absolute inset-x-0 top-[68%] h-px bg-[linear-gradient(90deg,transparent,rgba(36,29,24,0.18)_12%,rgba(36,29,24,0.18)_88%,transparent)]" />
 
               {/*
-                The convoy — rider and cards in one row, one element, one
-                tween. Centred with a negative margin rather than a transform,
-                because GSAP owns `x` here and a Tailwind `-translate-x-1/2`
-                would be wiped the moment the first tween ran.
+                Three actors, layered.
 
-                Reading order left to right is 03, 02, 01, the statement, then
-                the rider: so on screen the rider arrives first and the cards
-                come through behind him in order.
+                `z-30` on the rider, `z-10` on the train: the cards have to
+                disappear *behind* him, and a card that vanishes in front of
+                the box it is supposed to be entering reads as a card being
+                deleted. Stacking order is the whole difference.
+
+                They used to be a single flex row translated as a unit, which
+                is why the rider could never stop: anything that halted him
+                halted the cards behind him too. Splitting them lets the rider
+                arrive, park at the right edge and stay there while the train
+                keeps feeding cards into the box on his back.
+
+                Positions and travel are measured after mount rather than
+                written here, because three separate things have to coincide on
+                one frame — the tail line centred, the last card meeting the
+                box, and the next band starting its climb. That is arithmetic,
+                not a set of numbers to guess at. See the timeline above.
+              */}
+
+              {/*
+                The rider. Enters from the left, parks near the right edge, and
+                is never tweened again until the very end — which is what makes
+                him stop. The bob is a nested element so the scroll tween and
+                the idle tween never share a transform.
               */}
               <div
-                data-hero="convoy"
-                className="absolute left-1/2 top-1/2 flex -translate-y-1/2 items-center gap-[150px] will-change-transform"
-                style={{ width: CONVOY_HALF * 2, marginLeft: -CONVOY_HALF }}
+                data-hero="rider"
+                className="absolute left-0 top-1/2 z-30 w-[22rem] -translate-y-1/2 will-change-transform xl:w-[26rem] 2xl:w-[30rem]"
               >
+                {/*
+                  The wordmark, carried by him rather than chasing him.
+
+                  It had its own tween before, and two tweens moving two things
+                  along the same path is a promise the easing cannot keep: his
+                  arrival decelerates, its pass does not, so it slipped behind
+                  his shoulder and then pulled ahead again as the two curves
+                  crossed. Attached at `left-full` there is no relative motion
+                  to get wrong — it is exactly one rider-length in front of him
+                  at every scroll position, by construction.
+
+                  He parks near the right edge, so being in front of him means
+                  being off the right of the frame by then. That is the whole
+                  arc: it leads him in, and it is gone by the time he stops.
+                */}
+                <div
+                  aria-hidden
+                  className="absolute left-full top-1/2 ml-14 w-max -translate-y-1/2 leading-[0.82]"
+                >
+                <span className="relative block">
+                  {/*
+                    Two stacked copies, not one element.
+
+                    The face is a gradient, which needs `background-clip: text`
+                    and a transparent fill — and a transparent fill is exactly
+                    what would swallow a `text-shadow` extrusion. So the depth
+                    is its own layer underneath, in the darkest red of the ramp,
+                    and the gradient sits on top of it. Eight one-pixel offsets
+                    build the extruded body; one soft shadow sets it on the
+                    sheet.
+
+                    The ramp is the wordmark's own two colours — the crimson of
+                    DITTO into the ember of MART — run across both words rather
+                    than one colour per word, so it reads as a single object
+                    lit from one side.
+                  */}
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 block whitespace-pre text-[7.5rem] font-black tracking-[-0.045em]"
+                    style={{
+                      color: "#7d1a14",
+                      textShadow: [
+                        "1px 1px 0 #74170f",
+                        "2px 2px 0 #6a140d",
+                        "3px 3px 0 #5f110b",
+                        "4px 4px 0 #540e09",
+                        "5px 5px 0 #490b07",
+                        "6px 6px 0 #3e0905",
+                        "7px 7px 0 #330704",
+                        "8px 8px 0 #290503",
+                        "14px 20px 26px rgba(41,5,3,0.3)",
+                      ].join(", "),
+                    }}
+                  >
+                    {"OUR\nVISION"}
+                  </span>
+                  <span
+                    className="relative block whitespace-pre text-[7.5rem] font-black tracking-[-0.045em]"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(104deg, #ee4a3f 0%, #e04e0f 38%, #f4661f 68%, #fb8038 100%)",
+                      WebkitBackgroundClip: "text",
+                      backgroundClip: "text",
+                      color: "transparent",
+                    }}
+                  >
+                    {"OUR\nVISION"}
+                  </span>
+                </span>
+                </div>
+
+                <div data-hero="bob" className="w-full">
+                  {/* mirrored — the source art faces left */}
+                  <Image
+                    src={scooty}
+                    alt=""
+                    sizes="(max-width: 1279px) 416px, (max-width: 1535px) 480px, 544px"
+                    quality={78}
+                    className="h-auto w-full -scale-x-100 object-contain drop-shadow-[0_36px_50px_rgba(36,29,24,0.28)]"
+                  />
+                </div>
+              </div>
+
+              {/*
+                The train. Reading order left to right is the tail line, then
+                the cards in reverse — so on screen the lead card arrives at the
+                box first and the tail line is the last thing through.
+
+                `perspective` here rather than on each card, so the twist as a
+                card folds into the box is a real rotation in one shared space.
+              */}
+              <div
+                data-hero="train"
+                className="absolute left-0 top-1/2 z-10 flex -translate-y-1/2 items-center will-change-transform"
+              >
+                {/*
+                  The closing line. Narrow on purpose: its width sets how far
+                  right of centre the rider has to park, and a wide one pushes
+                  him off the edge of a 1280px desktop.
+                */}
+                <div data-tail className="w-[17rem] shrink-0 text-right">
+                  <span
+                    aria-hidden
+                    className="ml-auto block h-[3px] w-16 rounded-full"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(90deg, #ee4a3f, #fb8038)",
+                    }}
+                  />
+                  <span className="mt-4 block font-mono text-2xs font-semibold uppercase tracking-[0.22em] text-[#b93a0f]">
+                    And then
+                  </span>
+                  <p
+                    className="mt-3 text-[2.1rem] font-black leading-[1.06] tracking-[-0.03em]"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(102deg, #ee4a3f 0%, #e04e0f 46%, #fb8038 100%)",
+                      WebkitBackgroundClip: "text",
+                      backgroundClip: "text",
+                      color: "transparent",
+                    }}
+                  >
+                    Turning Vision into Reality
+                  </p>
+                </div>
+
                 {[...VISION_CARDS].reverse().map((c) => (
                   <div
                     key={c.title}
+                    data-card
                     className={cn(
-                      "shrink-0 rounded-[26px] border border-[#241d18]/10 bg-white shadow-[0_26px_70px_-28px_rgba(36,29,24,0.42)]",
-                      c.lead ? "w-[430px] px-9 py-8" : "w-[310px] px-8 py-7"
+                      "ml-[20rem] shrink-0 rounded-[26px] border border-[#241d18]/10 bg-white shadow-[0_26px_70px_-28px_rgba(36,29,24,0.42)] first:ml-8",
+                      c.lead ? "w-[430px] px-9 py-8" : "w-[330px] px-8 py-7"
                     )}
                   >
                     {/* a rule rather than a filled chip: on a light card a
@@ -513,76 +802,26 @@ export function Hero({ ready = true }: { ready?: boolean }) {
                     </p>
                   </div>
                 ))}
-
-                {/*
-                  The rider, at the head of the convoy. Two nested elements on
-                  purpose: the row carries the scroll-driven travel, the inner
-                  one carries the idle bob, and keeping them apart means
-                  neither tween ever clobbers the other's transform.
-                */}
-                <div className="relative z-10 -ml-[40px] size-[34rem] shrink-0">
-                  <div data-hero="bob" className="size-full">
-                    {/* mirrored — the source art faces left */}
-                    <Image
-                      src={scooty}
-                      alt=""
-                      sizes="544px"
-                      quality={78}
-                      className="h-full w-full -scale-x-100 object-contain drop-shadow-[0_36px_50px_rgba(36,29,24,0.28)]"
-                    />
-                  </div>
-                </div>
-
-                {/*
-                  The statement, riding at the head of the convoy.
-
-                  It sits to the *right* of the rider, which is what puts it
-                  first: the row travels left to right, so its rightmost
-                  element is the one that comes through the left edge of the
-                  frame first. The reader gets the words, then the rider, then
-                  the cards he is pulling.
-
-                  Sized against the rider rather than in absolute units — half
-                  its 34rem, so the two stay in proportion at any zoom.
-
-                  The depth is stacked `text-shadow`s, not a filter or an SVG.
-                  Eight one-pixel offsets darkening as they recede build the
-                  extruded face, and a single soft shadow underneath sits it on
-                  the sheet. It costs one paint, scales cleanly, and stays
-                  selectable text — a rasterised 3D word would do none of that.
-                */}
-                <div
-                  aria-hidden
-                  className="-ml-[3rem] shrink-0 pb-[6rem] leading-[0.82]"
-                  style={{
-                    color: "#7c3aed",
-                    textShadow: [
-                      "1px 1px 0 #6d28d9",
-                      "2px 2px 0 #6423cf",
-                      "3px 3px 0 #5b21b6",
-                      "4px 4px 0 #501c9e",
-                      "5px 5px 0 #451787",
-                      "6px 6px 0 #3b1370",
-                      "7px 7px 0 #310f5b",
-                      "8px 8px 0 #280c49",
-                      "14px 20px 26px rgba(40,12,73,0.28)",
-                    ].join(", "),
-                  }}
-                >
-                  <span className="block text-[8.5rem] font-black tracking-[-0.045em]">
-                    OUR
-                  </span>
-                  <span className="block text-[8.5rem] font-black tracking-[-0.045em]">
-                    VISION
-                  </span>
-                </div>
               </div>
             </div>
           </div>
 
           {/* ---------- copy ---------- */}
           <div className="container-page relative w-full">
-            <div data-hero="copy" className="max-w-2xl">
+            {/*
+              The column is wider than it was and no longer hard against the
+              container's left padding.
+
+              At `max-w-2xl` starting at the gutter it sat in the outer eighth
+              of a wide monitor and read as pinned to the edge rather than
+              placed. A third of a screen in from the left, up to `3xl`, still
+              clears the graph — the scrim behind it does not fade out until
+              70% across, and the mesh's own centre is at 63%.
+            */}
+            <div
+              data-hero="copy"
+              className="max-w-3xl lg:ml-[3vw] xl:ml-[5vw]"
+            >
               <div data-hero="badge">
                 <Link
                   href="/network#ondc"
@@ -625,11 +864,20 @@ export function Hero({ ready = true }: { ready?: boolean }) {
 
               <p
                 data-hero="lede"
-                className="mt-7 max-w-xl text-base leading-relaxed text-white/75 [text-shadow:0_1px_12px_rgba(0,0,0,0.6)] md:text-lg"
+                className="mt-7 max-w-2xl text-base leading-relaxed text-white/82 [text-shadow:0_1px_14px_rgba(0,0,0,0.7)] md:text-lg"
               >
                 Adloggs, Shiprocket Quick, Flash by Shadowfax, Pidge, Quicka,
                 Qwqer, Ek Bharath, Pro Routing and ONDC — carrying Ola and
                 Rapido. Nine networks, one API call.
+                <span className="mt-4 block text-white/70">
+                  The money moves with it. Top up your wallet by UPI, Razorpay
+                  or PhonePe; every order deducts at your contracted rate before
+                  a rider is ever called.
+                </span>
+                <span className="mt-3 block text-white/70">
+                  Monthly GST invoice raised automatically, weekly NEFT
+                  settlement, and no receivables to chase.
+                </span>
               </p>
 
               <div
@@ -658,7 +906,7 @@ export function Hero({ ready = true }: { ready?: boolean }) {
 
               <p
                 data-hero="note"
-                className="mt-7 font-mono text-2xs uppercase tracking-[0.16em] text-white/50"
+                className="mt-7 font-mono text-2xs uppercase tracking-[0.16em] text-white/60"
               >
                 Sandbox in minutes · No fleet contracts · Pay per delivery
               </p>

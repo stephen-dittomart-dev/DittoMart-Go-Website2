@@ -102,15 +102,23 @@ export function HoldToEnd({
              hold, so this is precisely the window the band is held for, with
              no number repeated between the CSS and the tween.
 
-             Scale and opacity only. A blur across a full-viewport band costs a
-             full-screen filter pass every frame of a scrub and buys almost
-             nothing once the band is at 90% and a quarter opacity. */
+             It recedes by blurring and darkening, never by going transparent.
+             Opacity was the obvious choice and the wrong one: a band at a
+             quarter opacity does not fade to nothing, it fades to *whatever is
+             behind it* — which is the band before, still sitting there. Two
+             sections showing through each other is not depth, it is a
+             mistake. Blur takes the band out of focus while it stays fully
+             opaque, so nothing can bleed through it.
+
+             The blur is the expensive part — a full-viewport filter pass on
+             every scrub frame — so it is held to 9px, and only ever on the one
+             band being handed over. */
           tween = gsap.fromTo(
             el,
-            { scale: 1, autoAlpha: 1 },
+            { scale: 1, filter: "blur(0px) brightness(1)" },
             {
-              scale: 0.9,
-              autoAlpha: 0.25,
+              scale: 0.92,
+              filter: "blur(9px) brightness(0.55)",
               ease: "none",
               transformOrigin: "50% 42%",
               scrollTrigger: {
@@ -126,7 +134,7 @@ export function HoldToEnd({
           tween.scrollTrigger?.kill();
           tween.kill();
           tween = null;
-          gsap.set(el, { clearProps: "transform,opacity,visibility" });
+          gsap.set(el, { clearProps: "transform,filter" });
         }
       };
 
