@@ -125,7 +125,7 @@ export function Developers() {
             </div>
           </div>
 
-          <div className="lg:col-span-7">
+          <div className="min-w-0 lg:col-span-7">
             <CodeWindow
               samples={createOrderSamples}
               response={createOrderResponse}

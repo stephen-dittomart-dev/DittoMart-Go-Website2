@@ -483,9 +483,31 @@ export function Header() {
       {/* ------------------------------ Mobile menu ----------------------- */}
       {mobileOpen ? (
         <div className="lg:hidden">
+          {/*
+            `text-fg` is not decoration here, it is the contrast fix.
+
+            The header carries `sceneVars(scene)`, so `--bg` and `--fg` on this
+            subtree are the *band's* palette. The drawer took its background
+            from that — `bg-bg` — but its text colour from inheritance, and the
+            only colour it could inherit was the document's, because the one
+            `text-fg` in this component sits on the desktop row, which is a
+            sibling. So over a light band the drawer painted a light panel and
+            then wrote the document's light-on-dark text onto it, and the links
+            went to nearly nothing.
+
+            Both ends have to read the same palette. Naming `text-fg` here does
+            that, and every link inside inherits it.
+          */}
           <div
             data-lenis-prevent
-            className="h-[calc(100dvh-60px)] overflow-y-auto border-t border-line bg-bg px-5 pb-24 pt-6"
+            className={cn(
+              "overflow-y-auto border-t border-line bg-bg px-5 pb-24 pt-6 text-fg",
+              /* The same two numbers the row above uses. It was pinned to the
+                 condensed height either way, so opening the menu at the top of
+                 a page — where the bar is still 68px — made the drawer eight
+                 pixels taller than the space left for it. */
+              scrolled ? "h-[calc(100dvh-60px)]" : "h-[calc(100dvh-68px)]"
+            )}
           >
             <MobileNav groups={navigation} />
             <div className="mt-8 flex flex-col gap-3">

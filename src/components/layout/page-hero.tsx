@@ -147,7 +147,7 @@ export function PageHero({
           data-ph="copy"
           className={cn(
             "flex flex-col",
-            visual ? "lg:col-span-7" : "max-w-3xl",
+            visual ? "min-w-0 lg:col-span-7" : "max-w-3xl",
             align === "center" && "mx-auto items-center text-center"
           )}
         >
@@ -228,7 +228,7 @@ export function PageHero({
         </div>
 
           {visual ? (
-            <div data-ph="visual" className="lg:col-span-5">
+            <div data-ph="visual" className="min-w-0 lg:col-span-5">
               {visual}
             </div>
           ) : null}

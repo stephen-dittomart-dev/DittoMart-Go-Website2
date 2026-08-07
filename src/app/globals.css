@@ -484,6 +484,41 @@ html.theme-dark {
     readable inset rather than text against the bezel.
   */
   padding-inline: clamp(1.25rem, 3.2vw, 6rem);
+
+  /*
+    Nothing inside the page container may widen the page.
+
+    The gutter used to absorb this by accident. Several bands stage their
+    entrance from the right — `gsap.set(el, { opacity: 0, x: 34 })` and
+    similar — and the element being offset is already the full width of the
+    container, so it starts 26–44px past the right edge. On a desktop the
+    gutter is 41–96px wide and swallows it. Below `lg` the gutter is 20–25px
+    and it does not: the page came out a few pixels wider than the screen, the
+    mobile layout viewport grew to match, and the whole site rendered zoomed
+    out by that fraction — which is the thin strip of background down the
+    right side and along the bottom.
+
+    `overflow-x: clip` on `html` could not fix it. The root element's overflow
+    is applied to the *viewport* rather than to the root box, so it governs
+    whether you can scroll sideways — not whether the layout viewport grows.
+    It hid the symptom on desktop and did nothing on a phone. Clipping on a
+    normal element is different: the overflow is genuinely removed from the
+    scrollable region, so there is nothing left to widen anything.
+
+    `clip`, not `hidden`, for the reason given on `html` above — `hidden` makes
+    a scroll container and a scroll container between a sticky element and the
+    viewport kills the sticky, which this site relies on in five places.
+    Paired with `overflow-y: visible` this is a legal combination that leaves
+    both axes as specified, so nothing is clipped vertically and no scroll
+    container is created.
+
+    The clip margin lets shadows and focus rings breathe — they overhang by a
+    few pixels and are meant to — while still being far short of the entrance
+    offsets that caused this.
+  */
+  overflow-x: clip;
+  overflow-y: visible;
+  overflow-clip-margin: 0.75rem;
 }
 
 /* --------------------------------------------------------------------------

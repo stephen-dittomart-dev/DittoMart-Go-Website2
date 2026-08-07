@@ -522,10 +522,19 @@ export function Hero({ ready = true }: { ready?: boolean }) {
               data-hero="art"
               className="absolute inset-0 will-change-transform"
             >
+              {/*
+                The mesh is mounted from the first frame but does not begin its
+                flight until the intro has cleared the screen — the same
+                `ready` that releases the rig above. It is drawn the whole
+                time, parked small and far out at the start of its arc, so the
+                handover costs nothing and the reader sees the arrival from its
+                actual first frame rather than joining it two-thirds through.
+              */}
               <RoutingMesh
                 className="absolute inset-0 h-full w-full"
                 originX={0.63}
                 originY={0.47}
+                play={ready}
               />
             </div>
 

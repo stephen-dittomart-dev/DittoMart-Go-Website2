@@ -151,16 +151,37 @@ export function PageEnter({ children }: { children: ReactNode }) {
         style={{ opacity: 0 }}
       />
 
+      {/*
+        The sweep travels the full width and out the other side, so for most of
+        its run it sticks out past the right edge — and being `fixed`, nothing
+        in the document can clip it. The page container's own clip cannot reach
+        it and neither can the root's.
+
+        On a desktop that is invisible. On a phone it is not: an element wider
+        than the screen grows the layout viewport, the browser zooms the page
+        out to fit, and every navigation left a thin strip of background down
+        the right side and along the bottom until the next reflow.
+
+        A full-viewport clip layer around it is the whole fix. `clip` rather
+        than `hidden` for the usual reason, and the layer is inert and
+        zero-cost when the sweep is idle at `opacity: 0`.
+      */}
       <div
-        data-page-sweep
         aria-hidden
-        className="pointer-events-none fixed inset-y-0 -left-1/3 z-[9996] w-1/2"
-        style={{
-          opacity: 0,
-          background:
-            "linear-gradient(100deg, transparent, color-mix(in oklab, var(--color-ember-500) 16%, transparent) 45%, color-mix(in oklab, var(--color-pulse-500) 10%, transparent) 60%, transparent)",
-        }}
-      />
+        className="pointer-events-none fixed inset-0 z-[9996]"
+        style={{ overflowX: "clip", overflowY: "visible" }}
+      >
+        <div
+          data-page-sweep
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/2"
+          style={{
+            opacity: 0,
+            background:
+              "linear-gradient(100deg, transparent, color-mix(in oklab, var(--color-ember-500) 16%, transparent) 45%, color-mix(in oklab, var(--color-pulse-500) 10%, transparent) 60%, transparent)",
+          }}
+        />
+      </div>
 
       <div ref={wrap}>{children}</div>
     </>
