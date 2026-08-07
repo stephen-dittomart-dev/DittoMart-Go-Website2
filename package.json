@@ -4,12 +4,14 @@
   "private": true,
   "description": "DittoMart Go — B2B Delivery-as-a-Service platform. Corporate website.",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/serve.mjs dev",
     "dev:turbo": "next dev --turbopack",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/serve.mjs start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:raw": "next dev",
+    "start:raw": "next start"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

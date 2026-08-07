@@ -90,9 +90,12 @@ export default function HomePage() {
       <HomeStage />
 
       {/* ------------------------------------------------------------------
-          Three overlap boundaries: the film, the burst and the routing fork
-          each stop on their last screenful while the band after them climbs
-          over the top.
+          Two overlap boundaries: the film and the routing fork each stop on
+          their last screenful while the band after them climbs over the top.
+
+          The burst used to be a third. It is not any more — the fork below no
+          longer rises over it, so the burst runs its runway out and leaves the
+          way any ordinary band does.
 
           Two ingredients, and which one a band needs depends on whether it
           already holds itself:
@@ -104,9 +107,8 @@ export default function HomePage() {
             · `lg:-mt-[100vh]` — on the band doing the climbing. One viewport,
               the same viewport the hold lasts for.
 
-          The burst needs no wrapper: it is 580vh of runway around a
-          `sticky top-0` stage already, so it is held by its own mechanism and
-          only the band after it has to be pulled up.
+          The burst needs neither: it is 580vh of runway around a `sticky top-0`
+          stage, so its own runway already carries it off the screen.
 
           No z-index anywhere. Every band here is positioned, so a later one
           paints over an earlier one in DOM order — which is the order they
@@ -138,9 +140,20 @@ export default function HomePage() {
       {/* 04 · ink — the burst. Holds itself; nothing to add here. */}
       <NetworkBurst />
 
-      {/* 05 · bone — the routing fork. Climbs over the burst, then holds while
-          the moat band climbs over it. */}
-      <HoldToEnd className="lg:-mt-[100vh]">
+      {/* 05 · bone — the routing fork.
+
+          No climb here, deliberately. It used to carry `lg:-mt-[100vh]` and
+          rise over the burst's last screenful like every other boundary on
+          this page; that overlap is gone. The burst simply scrolls up and out
+          under its own runway and the fork follows it, the two moving together
+          as one page rather than one sliding over the other.
+
+          It still *holds* — the wrapper stays. That is the boundary after this
+          one, where the moat band climbs over the fork, and it is unaffected:
+          `HoldToEnd` pins this band's end and the moat's own `-mt-[100vh]` is
+          what does the climbing there. The two jobs were only ever on the same
+          element by coincidence. */}
+      <HoldToEnd>
         <Scene scene="bone" id="routing" padded={false} sweep="none">
           <RoutingDecision />
         </Scene>

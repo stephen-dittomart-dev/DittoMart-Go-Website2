@@ -10,7 +10,13 @@ import { RoutingMesh } from "@/components/motion/routing-mesh";
 import { SplitHeading } from "@/components/motion/split-heading";
 import { Button } from "@/components/ui/button";
 import { useMagnetic } from "@/hooks/use-motion";
-import { EASE, gsap, prefersReducedMotion, registerGsap } from "@/lib/motion";
+import {
+  EASE,
+  gsap,
+  prefersReducedMotion,
+  registerGsap,
+  ScrollTrigger,
+} from "@/lib/motion";
 import { sceneVars } from "@/lib/scenes";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +57,84 @@ const VISION_CARDS = [
  */
 const CLIMB = 0.872;
 const TRAIN_IN = 0.333;
+
+/* --------------------------------------------------------------------------
+   The vision, below `lg`.
+
+   On a desktop the vision plays sideways: a white sheet, a rider who parks at
+   the right edge, and a train of cards crossing the frame into the box on his
+   back. None of that fits a phone. A 2500px train cannot cross a 390px screen,
+   and one card at a time is a slideshow — so below `lg` the whole act was
+   simply switched off, and what was left was the hero fading into the film
+   band with a long empty stretch in between.
+
+   The act is not dropped here, it is turned ninety degrees. The rider rises
+   from the bottom edge and parks near the top; the cards follow him up one
+   after another and go into the same box; the closing line comes up last and
+   settles in the middle. Every relationship the desktop version has is
+   preserved — the rider leads, the cards are swallowed, the line is the last
+   thing through — with height standing in for width, which a phone has plenty
+   of and a desktop does not.
+
+   The runway carries both acts below `lg`, and they overlap.
+
+   `EXIT_VH` is what the runway used to be in total, and the exit is still
+   capped to it, so the exit's pacing is exactly what it always was.
+
+   `VS_START_VH` is where the vision begins, and it is a long way *inside* that
+   — the sheet comes up while the mesh is still zooming, not after it has
+   finished. Waiting for the exit to run out was the obvious thing to do and it
+   left a hole: the readable part of the exit is over by about half a screen,
+   and the rest of it is the iris quietly filling behind. On a phone that is
+   three or four flicks of a dead sand-coloured screen before anything else
+   happens.
+
+   Overlapping them is what the desktop act already does — the white sheet
+   there rises at a fifth of the way through its own timeline, well before the
+   zoom is done. This is the same handover, at the same point in the same
+   gesture. The iris carries on underneath the sheet; nobody sees it, and
+   nothing had to be re-timed to hide it.
+   -------------------------------------------------------------------------- */
+const EXIT_VH = 1.68;
+/**
+ * Where the vertical act starts, in viewport heights down the runway.
+ *
+ * 0.30 is the same instant the desktop sheet goes up: a fifth of the way into
+ * the exit, which is just after the copy has finished clearing and while the
+ * mesh still has a third of its zoom to run. At 0.42 — where this sat first —
+ * the sheet was arriving a fraction *after* the zoom had already finished, so
+ * the two still read as one thing ending and another starting.
+ */
+const VS_START_VH = 0.3;
+
+/**
+ * Where the rider's top comes to rest, as a fraction of the frame.
+ *
+ * Not as high as it could be. He carries the wordmark above him, and at 8% —
+ * where he sat first — there was not enough frame left over it, so "OUR
+ * VISION" spent the whole act sliced off by the top edge. This is the height
+ * at which the two of them are one object with room around it.
+ */
+const VS_PARK = 0.16;
+/**
+ * The mouth of the pannier, down the rider's own height.
+ *
+ * The desktop act puts the slot a fifth in from the rider's *leading* edge —
+ * the side the cards arrive from. Coming from the left, that is his left. Here
+ * they arrive from below, so the leading edge is his underside and the slot
+ * belongs well down him, not near his top.
+ *
+ * Getting this backwards is what made the first pass read wrong: clipped near
+ * his head, a card stayed whole across everything below it, so it covered the
+ * entire bike on its way past instead of disappearing into it.
+ */
+const VS_SLOT = 0.58;
+/** Timeline anchors for the vertical act, all within its own 0 → 1. */
+const VS_RIDE_IN = 0.05;
+const VS_RIDE_DUR = 0.23;
+const VS_TRAIN_IN = 0.15;
+/** Where the closing line lands dead centre and the rider sets off again. */
+const VS_TAIL_AT = 0.84;
 
 /**
  * Home hero.
@@ -202,8 +286,18 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         scrollTrigger: {
           trigger: track,
           start: "top top",
-          end: "bottom bottom",
+          /* Desktop still spans the whole runway. Below `lg` the runway now
+             carries a second act — the vision, played vertically — so this one
+             is capped at the length it always had, and the rest of the track
+             belongs to the sequence below. Without the cap, lengthening the
+             runway would simply stretch these beats to two and a half times
+             their duration and the copy would take a screenful to fade. */
+          end: () =>
+            window.innerWidth >= 1024
+              ? "bottom bottom"
+              : "+=" + Math.round(window.innerHeight * EXIT_VH),
           scrub: 0.5,
+          invalidateOnRefresh: true,
         },
       });
 
@@ -485,6 +579,193 @@ export function Hero({ ready = true }: { ready?: boolean }) {
     { scope: root, dependencies: [ready, addLineSweep] }
   );
 
+  /* ------------------------------------------------------------------------
+     The vertical vision — below `lg` only.
+
+     Its own effect and its own ScrollTrigger, sharing nothing with the block
+     above but the runway they both measure against. That is deliberate: the
+     desktop act is a solved piece of geometry that took several passes to get
+     right, and the surest way to keep it right is to give the phone version
+     somewhere else to live.
+
+     `gsap.matchMedia` rather than a width check, so crossing the breakpoint
+     tears this down and puts the desktop version back with no stale tweens
+     left on the elements.
+     ------------------------------------------------------------------------ */
+  useGSAP(
+    () => {
+      registerGsap();
+      const track = runway.current;
+      const el = root.current;
+      if (!track || !el) return;
+
+      const mm = gsap.matchMedia();
+
+      mm.add("(max-width: 1023px)", () => {
+        const q = gsap.utils.selector(el);
+        const stage = q("[data-vsm='stage']")[0];
+        const rider = q("[data-vsm='rider']")[0];
+        const train = q("[data-vsm='train']")[0];
+        const tail = q("[data-vsm='tail']")[0];
+        const cards = q("[data-vsm='card']");
+        if (!stage || !rider || !train || !tail || !cards.length) return;
+
+        /* Reduced motion gets the finished state, not the journey: the sheet
+           up, the line where it lands, and nothing that moves. */
+        if (prefersReducedMotion()) {
+          gsap.set(stage, { visibility: "visible", yPercent: 0 });
+          gsap.set(train, {
+            y: window.innerHeight / 2 - tail.offsetTop - tail.offsetHeight / 2,
+          });
+          gsap.set(cards, { autoAlpha: 0 });
+          gsap.set(rider, { y: window.innerHeight * VS_PARK });
+          return;
+        }
+
+        let tl: gsap.core.Timeline | null = null;
+        let lastW = 0;
+
+        const build = () => {
+          tl?.scrollTrigger?.kill();
+          tl?.kill();
+          gsap.set(cards, { clearProps: "clipPath,transform" });
+
+          const H = window.innerHeight;
+          const riderH = rider.offsetHeight;
+          const parked = H * VS_PARK;
+          /* The mouth of the pannier. The art is mirrored and shot from the
+             side, so the box sits a little under half way down him — which is
+             the line every card has to vanish at. */
+          const slotAt = parked + riderH * VS_SLOT;
+
+          gsap.set(stage, { yPercent: 100, visibility: "visible" });
+
+          tl = gsap.timeline({
+            scrollTrigger: {
+              trigger: track,
+              /* Well before the exit above finishes — see `VS_START_VH`. The
+                 sheet comes up over a mesh that is still zooming, which is
+                 what the desktop act does too. */
+              start: () => "top top-=" + Math.round(H * VS_START_VH),
+              end: "bottom bottom",
+              scrub: 0.5,
+              invalidateOnRefresh: true,
+            },
+          });
+
+          // the sheet rises from the bottom edge, as it does on desktop
+          tl.fromTo(
+            stage,
+            { yPercent: 100 },
+            { yPercent: 0, ease: EASE.inOut3, duration: 0.1 },
+            0
+          );
+
+          // the rider comes up through the bottom edge and parks near the top
+          tl.fromTo(
+            rider,
+            { y: H + riderH },
+            { y: parked, ease: "power2.out", duration: VS_RIDE_DUR },
+            VS_RIDE_IN
+          );
+
+          /* The travel, solved rather than written — the same inversion the
+             desktop act uses, on the other axis.
+
+             The train moves at a constant rate, so its position is a straight
+             line in the timeline and can be read backwards: given where a card
+             has to be, we can say exactly when it is there.
+
+             It stops at `VS_TAIL_AT` with the closing line dead centre, rather
+             than running to the end of the timeline. The desktop version does
+             extrapolate past its own anchor, but it can afford to — the film
+             band climbs over it there and covers the rest. Nothing covers this
+             one, so a train still moving after the line has landed would carry
+             it straight off the top and leave the last sixth of the act on an
+             empty white screen. Which is the bug this whole act exists to fix.
+             Stopping it means the remaining scroll is the line held still,
+             which is the pause it wants anyway. */
+          const y0 = H * 1.02;
+          const yAtTail = H / 2 - tail.offsetTop - tail.offsetHeight / 2;
+          const travel = VS_TAIL_AT - VS_TRAIN_IN;
+
+          tl.fromTo(
+            train,
+            { y: y0 },
+            { y: yAtTail, ease: "none", duration: travel },
+            VS_TRAIN_IN
+          );
+
+          const timeAt = (ty: number) =>
+            VS_TRAIN_IN + travel * ((ty - y0) / (yAtTail - y0));
+
+          /* Each card is posted into the box, top edge first.
+
+             Clipped, not faded: what the reader sees is a card sliding into an
+             opening while the rest of it is still outside. The clip is pinned
+             to the slot and interpolated linearly, so the seam never drifts off
+             it — an eased clip would slide the boundary around and give the
+             illusion away. Solved per card, because the gaps in the column are
+             not equal and a fixed stagger would post some of them into thin
+             air. */
+          cards.forEach((c) => {
+            const card = c as HTMLElement;
+            const tIn = timeAt(slotAt - card.offsetTop);
+            const tOut = timeAt(slotAt - card.offsetTop - card.offsetHeight);
+            tl!.fromTo(
+              card,
+              { clipPath: "inset(0% 0% 0% 0%)", scaleY: 1 },
+              {
+                clipPath: "inset(100% 0% 0% 0%)",
+                scaleY: 0.94,
+                transformOrigin: "50% 100%",
+                ease: "none",
+                duration: Math.max(0.01, tOut - tIn),
+              },
+              tIn
+            );
+          });
+
+          /* He sets off again on the frame the closing line lands, and this is
+             the only tween that touches him after he parks — which is what
+             makes him genuinely stationary in between rather than animated to
+             hold still. */
+          tl.to(
+            rider,
+            { y: -(riderH + H * 0.3), ease: "power1.in", duration: 0.12 },
+            VS_TAIL_AT
+          );
+
+          lastW = window.innerWidth;
+        };
+
+        build();
+
+        /* Rebuilt on a real resize only. Every measurement above is in pixels
+           taken from the layout, so a rotation invalidates all of them — but on
+           a phone `resize` also fires every time the URL bar slides away, and
+           rebuilding the whole act mid-scroll for that is both wasted work and
+           a visible jump. The width is what actually changed in the first case
+           and never changes in the second. */
+        const onResize = () => {
+          if (window.innerWidth === lastW) return;
+          build();
+          ScrollTrigger.refresh();
+        };
+        window.addEventListener("resize", onResize);
+
+        return () => {
+          window.removeEventListener("resize", onResize);
+          tl?.scrollTrigger?.kill();
+          tl?.kill();
+        };
+      });
+
+      return () => mm.revert();
+    },
+    { scope: root, dependencies: [ready] }
+  );
+
   return (
     <section
       ref={root}
@@ -497,12 +778,19 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         nothing more. Every extra viewport here is scroll the reader spends
         looking at a finished animation.
 
-        Desktop gets nearly twice the length because the white intermission
-        happens inside it: the sheet has to rise, the whole card train has to
-        pass, and the sheet has to leave. Phones never run that, so their
-        runway stays at the length of the original dissolve.
+        Both widths now carry two acts, so both are long. Desktop runs the
+        exit and then the sideways vision; below `lg` it is the same exit —
+        capped to the 168vh it always had, see the trigger above — with the
+        vertical one starting 42vh in and overlapping it.
+
+        330vh is not a chosen number. The vertical act needs 200vh to get four
+        cards and a closing line up the screen one at a time, it now begins at
+        30vh, and a sticky stage stops one viewport before its runway ends:
+        30 + 200 + 100. Shortening this by the same amount the act moved
+        earlier is what actually removes the dead scroll — starting sooner and
+        leaving the runway alone would only have made the act slower.
       */}
-      <div ref={runway} className="relative h-[168vh] lg:h-[780vh]">
+      <div ref={runway} className="relative h-[330vh] lg:h-[780vh]">
         {/* the stage — held by sticky, never re-laid-out */}
         <div className="sticky top-0 flex h-dvh items-center overflow-hidden">
           {/* ---------- artwork ---------- */}
@@ -811,6 +1099,174 @@ export function Hero({ ready = true }: { ready?: boolean }) {
                     </p>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* --------------------------------------------------------------
+                The same act, turned ninety degrees — below `lg` only.
+
+                Deliberately a separate subtree rather than a set of responsive
+                classes on the one above. The two versions share no geometry:
+                one is a flex row measured in `offsetLeft` and clipped from the
+                right, the other a column measured in `offsetTop` and clipped
+                from the top. Trying to make one element do both is how the
+                desktop version gets broken by a change meant for phones.
+
+                Nothing here is rendered above `lg` and nothing above is
+                rendered below it, so neither can affect the other.
+                -------------------------------------------------------------- */}
+            <div
+              data-vsm="stage"
+              /* `invisible`, not a transform — the same reasoning as the sheet
+                 above. A seeded `translateY(100%)` would be read back by GSAP
+                 in resolved pixels and then have `yPercent: 100` added on top
+                 of it. */
+              className="invisible absolute inset-0 z-20 overflow-hidden bg-[#efece4] will-change-transform lg:hidden"
+            >
+              <div
+                className="absolute inset-0 opacity-70"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(rgba(36,29,24,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(36,29,24,0.045) 1px, transparent 1px)",
+                  backgroundSize: "58px 58px",
+                }}
+              />
+
+              {/*
+                The train, read top to bottom in arrival order: the lead card
+                is highest, so it reaches the rider first, and the closing line
+                is lowest, so it is last through. The desktop row is written in
+                reverse for exactly the same reason — there, the thing that
+                arrives first is the one furthest right.
+              */}
+              <div
+                data-vsm="train"
+                className="absolute inset-x-0 top-0 z-10 flex flex-col items-center px-6 will-change-transform"
+              >
+                {VISION_CARDS.map((c) => (
+                  <div
+                    key={c.title}
+                    data-vsm="card"
+                    className={cn(
+                      "mt-[42vh] w-full max-w-[20rem] shrink-0 rounded-[22px] sm:max-w-[24rem] border border-[#241d18]/10 bg-white shadow-[0_20px_54px_-24px_rgba(36,29,24,0.42)] first:mt-0",
+                      c.lead ? "px-7 py-7" : "px-6 py-6"
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "block h-[3px] rounded-full bg-[#e04e0f]",
+                        c.lead ? "w-12" : "w-7"
+                      )}
+                    />
+                    <span className="mt-4 block font-mono text-2xs font-semibold uppercase tracking-[0.2em] text-[#b93a0f]">
+                      {c.eyebrow}
+                    </span>
+                    <p
+                      className={cn(
+                        "mt-2.5 font-semibold leading-[1.18] tracking-[-0.02em] text-[#1b1713]",
+                        c.lead ? "text-[1.45rem]" : "text-[1.05rem]"
+                      )}
+                    >
+                      {c.title}
+                    </p>
+                  </div>
+                ))}
+
+                {/* a longer gap before the line, so the last card is gone and
+                    the screen is empty for a moment before it arrives */}
+                <div
+                  data-vsm="tail"
+                  className="mt-[64vh] w-full max-w-[20rem] shrink-0 text-center sm:max-w-[24rem]"
+                >
+                  <span
+                    aria-hidden
+                    className="mx-auto block h-[3px] w-14 rounded-full"
+                    style={{
+                      backgroundImage: "linear-gradient(90deg, #ee4a3f, #fb8038)",
+                    }}
+                  />
+                  <span className="mt-4 block font-mono text-2xs font-semibold uppercase tracking-[0.22em] text-[#b93a0f]">
+                    And then
+                  </span>
+                  <p
+                    className="mt-3 text-[1.9rem] font-black leading-[1.08] tracking-[-0.03em]"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(102deg, #ee4a3f 0%, #e04e0f 46%, #fb8038 100%)",
+                      WebkitBackgroundClip: "text",
+                      backgroundClip: "text",
+                      color: "transparent",
+                    }}
+                  >
+                    Turning Vision into Reality
+                  </p>
+                </div>
+              </div>
+
+              {/*
+                The rider, above the train so the cards vanish *behind* him.
+                `z-30` against the train's `z-10` — the same stacking the
+                desktop version needs, and for the same reason: a card that
+                disappears in front of the box it is entering reads as a card
+                being deleted.
+
+                Sized in `vw` with a ceiling, so he is a consistent share of
+                the screen from a 320px phone to a 1023px tablet rather than a
+                fixed block that dominates one and gets lost on the other.
+              */}
+              <div
+                data-vsm="rider"
+                className="absolute inset-x-0 top-0 z-30 flex justify-center will-change-transform"
+              >
+                <div className="relative w-[54vw] max-w-[15rem] sm:w-[44vw] sm:max-w-[19rem]">
+                  {/* the wordmark leads him up and out, exactly as it leads
+                      him across on desktop */}
+                  <div
+                    aria-hidden
+                    className="absolute bottom-full left-1/2 mb-4 w-max -translate-x-1/2 text-center leading-[0.84]"
+                  >
+                    <span className="relative block">
+                      <span
+                        aria-hidden
+                        className="absolute inset-0 block whitespace-pre text-[2.6rem] font-black tracking-[-0.045em] sm:text-[3.4rem]"
+                        style={{
+                          color: "#7d1a14",
+                          textShadow: [
+                            "1px 1px 0 #74170f",
+                            "2px 2px 0 #6a140d",
+                            "3px 3px 0 #5f110b",
+                            "4px 4px 0 #540e09",
+                            "6px 9px 12px rgba(41,5,3,0.3)",
+                          ].join(", "),
+                        }}
+                      >
+                        {"OUR\nVISION"}
+                      </span>
+                      <span
+                        className="relative block whitespace-pre text-[2.6rem] font-black tracking-[-0.045em] sm:text-[3.4rem]"
+                        style={{
+                          backgroundImage:
+                            "linear-gradient(104deg, #ee4a3f 0%, #e04e0f 38%, #f4661f 68%, #fb8038 100%)",
+                          WebkitBackgroundClip: "text",
+                          backgroundClip: "text",
+                          color: "transparent",
+                        }}
+                      >
+                        {"OUR\nVISION"}
+                      </span>
+                    </span>
+                  </div>
+
+                  {/* mirrored — the source art faces left */}
+                  <Image
+                    src={scooty}
+                    alt=""
+                    sizes="(max-width: 639px) 54vw, 44vw"
+                    quality={78}
+                    className="h-auto w-full -scale-x-100 object-contain drop-shadow-[0_24px_34px_rgba(36,29,24,0.28)]"
+                  />
+                </div>
               </div>
             </div>
           </div>
