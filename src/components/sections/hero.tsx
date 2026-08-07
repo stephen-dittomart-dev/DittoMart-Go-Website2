@@ -868,16 +868,10 @@ export function Hero({ ready = true }: { ready?: boolean }) {
               >
                 Adloggs, Shiprocket Quick, Flash by Shadowfax, Pidge, Quicka,
                 Qwqer, Ek Bharath, Pro Routing and ONDC — carrying Ola and
-                Rapido. Nine networks, one API call.
-                <span className="mt-4 block text-white/70">
-                  The money moves with it. Top up your wallet by UPI, Razorpay
-                  or PhonePe; every order deducts at your contracted rate before
-                  a rider is ever called.
-                </span>
-                <span className="mt-3 block text-white/70">
-                  Monthly GST invoice raised automatically, weekly NEFT
-                  settlement, and no receivables to chase.
-                </span>
+                Rapido. Nine networks, one API call. The money moves with it. 
+                Top up your wallet by UPI, Razorpay
+                or PhonePe; every order deducts at your contracted rate before a rider is ever called.
+                Monthly GST invoice raised automatically, weekly NEFT settlement, and no receivables to chase.
               </p>
 
               <div

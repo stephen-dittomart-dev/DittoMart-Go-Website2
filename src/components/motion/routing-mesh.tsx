@@ -7,15 +7,10 @@ import { gsap, prefersReducedMotion } from "@/lib/motion";
  * The routing mesh — the home hero's living background.
  *
  * A rotating cloud of nodes on a noisy sphere, wired to whichever neighbours
- * are close enough on screen, with links being *made* across it continuously:
+ * are close enough on screen, with routes being drawn across it continuously:
  * a line reaches out from one node, arrives at another, carries something
  * across, and releases. That is the product drawn literally — separate
  * services being connected so one delivery can cross all of them.
- *
- * The connection layer is deliberately sparse. Wiring every node to every
- * other one produces a ball of wool, and a ball of wool says nothing; a
- * handful of links being made, one at a time, in front of a quiet proximity
- * haze, reads as deliberate work happening.
  *
  * Six decisions that are worth writing down, because the obvious version of
  * this effect is a performance trap:
@@ -68,26 +63,30 @@ const FOV = 560;
 const LINK_DIST = 94;
 
 /* --------------------------------------------------------------------------
-   The route.
+   The routes.
 
-   Five stops, drawn in order, looping. This is the one thing on the page that
-   states the whole proposition as a picture: an order enters at DittoMart Go
-   and arrives at a customer, and everything in between is ours.
+   Three chains, not one. A single chain was too quiet — most of the time
+   nothing was happening anywhere on the screen, and the one thing that did was
+   easy to miss entirely. Three overlapping chains means something is always
+   connecting somewhere, and because each carries a different subsystem the
+   background ends up saying three true things instead of one.
+
+   They are separated by band rather than by luck: the delivery chain runs
+   across the top, the money chain across the middle, the evidence chain along
+   the bottom. Overlapping them vertically would produce a tangle no offset
+   could fix. Everything sits right of ~0.46 because the hero copy owns the
+   left column.
 
    Each stop rides an actual node of the cloud, so it rotates, breathes and
    parallaxes with everything else — the route is part of the network rather
-   than a diagram laid over it.
+   than a diagram laid over it. The anchors are re-picked at the top of every
+   cycle from front-facing nodes near the intended slots: the sphere turns
+   about 31° in one cycle, so a node that starts well in front is still in
+   front when the cycle ends, and the re-pick happens during the blank gap
+   where nothing is drawn to jump.
 
-   The obvious problem with that is rotation: a node pinned once would swing
-   behind the sphere and take its label with it. The fix is to re-pick the
-   five anchors at the top of every cycle, choosing only front-facing nodes
-   near the intended slots. The sphere turns about 31° in one cycle, so a node
-   that starts well in front is still in front when the cycle ends — and the
-   re-pick happens during the blank gap, where nothing is drawn to jump.
-
-   `x`/`y` below are those intended slots, as fractions of the canvas. They
-   sit right of centre because the hero copy occupies the left column and the
-   scrim under it clears at ~70%.
+   The offsets are deliberately not multiples of each other, so the three never
+   fall into step and start reading as one animation with three parts.
    -------------------------------------------------------------------------- */
 type Stop = { label: string; x: number; y: number };
 type RouteSpec = {
@@ -98,24 +97,6 @@ type RouteSpec = {
   primary?: boolean;
 };
 
-/**
- * Three routes, not one.
- *
- * A single chain was too quiet — most of the time nothing was happening
- * anywhere on the screen, and the one thing that did happen was easy to miss
- * entirely. Three overlapping chains means something is always connecting
- * somewhere, and because each carries a different subsystem the background
- * ends up saying three true things instead of one.
- *
- * They are separated by band rather than by luck: the delivery chain runs
- * across the top, the money chain across the middle, the evidence chain along
- * the bottom. Overlapping them vertically would produce a tangle no offset
- * could fix. Everything sits right of ~0.46 because the hero copy owns the
- * left column.
- *
- * The offsets are deliberately not multiples of each other, so the three
- * never fall into step and start reading as one animation with three parts.
- */
 const ROUTES: RouteSpec[] = [
   {
     // the delivery
@@ -162,9 +143,9 @@ const routeCycle = (r: RouteSpec) =>
   routeLit(r) + ROUTE_HOLD + ROUTE_FADE + ROUTE_GAP;
 
 /**
- * Below this the route is dropped and only the ambient cloud remains.
- * Five labelled stops need horizontal room; squeezed onto a phone they
- * overlap each other and the headline, which is worse than not being there.
+ * Below this the routes are dropped and only the ambient cloud remains.
+ * Labelled stops need horizontal room; squeezed onto a phone they overlap
+ * each other and the headline, which is worse than not being there.
  */
 const ROUTE_MIN_WIDTH = 768;
 
