@@ -113,6 +113,26 @@ export function HoldToEnd({
              The blur is the expensive part — a full-viewport filter pass on
              every scrub frame — so it is held to 9px, and only ever on the one
              band being handed over. */
+
+          /* The window is the hold — and the hold is not always where the
+             spacer entering the frame says it is.
+
+             `top bottom`, the spacer's top meeting the bottom of the frame, is
+             the moment a band *taller* than the screen stops, and for those it
+             is exact. A band that fits the screen pins at `top: 0` instead,
+             which happens `100vh − h` later. Both inner-page heroes are that
+             shorter kind, so the recede was already an eighth of the way
+             through before the page had been scrolled at all: the band sat at
+             0.99 scale with a pixel of blur on it, which reads as a hairline
+             of background down each side and a hero that looks faintly soft
+             and faintly zoomed. It was not zoomed — it was receding, early.
+
+             `late` is the clamp from `top` read from the other side: zero for
+             a tall band, `100vh − h` for a short one. Both ends shift by it,
+             so the hold stays exactly one viewport long either way and the
+             height is still only written down once. */
+          const late = () => Math.max(0, window.innerHeight - el.offsetHeight);
+
           tween = gsap.fromTo(
             el,
             { scale: 1, filter: "blur(0px) brightness(1)" },
@@ -123,13 +143,32 @@ export function HoldToEnd({
               transformOrigin: "50% 42%",
               scrollTrigger: {
                 trigger: run,
-                start: "top bottom",
-                end: "bottom bottom",
+                start: () => "top bottom-=" + late(),
+                end: () => "top top-=" + late(),
                 scrub: 0.6,
                 invalidateOnRefresh: true,
               },
+              /* At rest the band must carry no filter and no transform at all.
+                 `blur(0px)` and `scale(1)` change nothing you can point at,
+                 but either one promotes the band to its own compositing layer,
+                 and text on a composited layer loses subpixel antialiasing —
+                 which is the rest of the softness, still there even once the
+                 window above is right. Cleared on the frame the tween settles
+                 back to zero, and written again by the next render the moment
+                 it leaves. */
+              onUpdate() {
+                if (this.progress() < 0.002) {
+                  el.style.filter = "";
+                  el.style.transform = "";
+                }
+              },
             }
           );
+
+          /* `immediateRender` paints the from-state without ever firing
+             `onUpdate`, so the very first frame has to be cleared by hand. */
+          el.style.filter = "";
+          el.style.transform = "";
         } else if (!holds && tween) {
           tween.scrollTrigger?.kill();
           tween.kill();
@@ -144,7 +183,20 @@ export function HoldToEnd({
          that change the height as they decode, and a wrong height means the
          band stops at the wrong line. Writing a custom property back to the
          observed element cannot loop — `top` does not affect height. */
-      const ro = new ResizeObserver(measure);
+      let lastH = 0;
+      const ro = new ResizeObserver(() => {
+        measure();
+        /* Both ends are now functions of the band's height, so a height that
+           settles after decode has to re-evaluate them — otherwise the hold is
+           computed against the height the band had before its images arrived.
+           Guarded on a real change, because the observer fires for every
+           layout pass and `refresh` is not free. */
+        const h = el.offsetHeight;
+        if (h !== lastH) {
+          lastH = h;
+          ScrollTrigger.refresh();
+        }
+      });
       ro.observe(el);
 
       const onResize = () => {
