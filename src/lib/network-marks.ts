@@ -7,7 +7,7 @@ import pidge from "@/assets/Networks/pidge.png";
 import proRouting from "@/assets/Networks/proRoutes.png";
 import quicka from "@/assets/Networks/quicka.png";
 import shiprocket from "@/assets/Networks/shipRockert.png";
-import owter from "@/assets/Networks/qwquer.png";
+import qwqer from "@/assets/Networks/qwquer.png";
 
 /**
  * Partner marks, keyed by provider id.
@@ -18,13 +18,13 @@ import owter from "@/assets/Networks/qwquer.png";
  * reorders `providers`; a lookup by id cannot.
  *
  * The files themselves are supplied art and their filenames are whatever they
- * arrived as — `qwquer.png` is Owter's, `shipRockert.png` is Shiprocket's.
+ * arrived as — `qwquer.png` is Qwqer's, `shipRockert.png` is Shiprocket's.
  * The mapping is corrected here, once, rather than at each call site.
  */
 export const networkMarks: Record<string, StaticImageData> = {
   adloggs,
   "shiprocket-quick": shiprocket,
-  owter,
+  qwqer,
   "flash-shadowfax": flash,
   quicka,
   pidge,

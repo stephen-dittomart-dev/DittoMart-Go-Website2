@@ -3,7 +3,7 @@ export type Faq = { q: string; a: string };
 export const faqs: Faq[] = [
   {
     q: "Which delivery networks do you actually route across?",
-    a: "Nine: Adloggs, Shiprocket Quick, Owter, Flash by Shadowfax, Quicka, Pidge and Ek Bharath on the partner rail, Pro Routing as the optimisation layer, and the ONDC rail which carries Ola and Rapido. Our own agency fleet sits alongside them. Every one is reachable through the same API call.",
+    a: "Nine: Adloggs, Shiprocket Quick, Qwqer, Flash by Shadowfax, Quicka, Pidge and Ek Bharath on the partner rail, Pro Routing as the optimisation layer, and the ONDC rail which carries Ola and Rapido. Our own agency fleet sits alongside them. Every one is reachable through the same API call.",
   },
   {
     q: "Do we need to sign contracts with each delivery provider?",

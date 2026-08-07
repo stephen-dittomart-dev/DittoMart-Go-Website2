@@ -44,7 +44,7 @@ export const providerWordmark: Record<
 > = {
   adloggs: { text: "adloggs", weight: 700, tracking: "-0.03em" },
   "shiprocket-quick": { text: "Shiprocket", weight: 700, tracking: "-0.02em" },
-  owter: { text: "OWTER", weight: 600, tracking: "0.12em" },
+  qwqer: { text: "QWQER", weight: 600, tracking: "0.12em" },
   "flash-shadowfax": {
     text: "Flash",
     weight: 800,

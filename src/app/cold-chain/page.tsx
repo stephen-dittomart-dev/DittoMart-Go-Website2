@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/layout/page-hero";
 import { Scene } from "@/components/motion/color-scene";
+import { HoldToEnd } from "@/components/motion/hold-to-end";
 import { Chapter, MediaPlate } from "@/components/motion/scene";
 import { Eyebrow } from "@/components/ui/primitives";
 import { ColdChainChapter } from "@/components/sections/chapters";
@@ -39,34 +40,66 @@ export default function ColdChainPage() {
         />
       </Scene>
 
-      <Scene scene="bone" padded={false} sweep="none">
-        <ColdChain />
-      </Scene>
+      {/* ------------------------------------------------------------------
+          Two overlap boundaries: 2 → 3 and 4 → 5.
 
-      <Scene scene="olive" padded={false} sweep="none">
+          `HoldToEnd` pins a band's last screenful and gives it one viewport of
+          hold, during which it recedes and dims; `lg:-mt-[100vh]` on the next
+          band is that same viewport. Nothing inside any band is touched, and
+          no z-index is involved — every band is positioned, so a later one
+          paints over an earlier one in DOM order. lg-only.
+
+          A band that turns out to fit the frame opts itself out inside
+          `HoldToEnd`, so the two chapter bands here are safe to wrap whether
+          or not they end up tall enough to be worth holding.
+          ------------------------------------------------------------------ */}
+
+      {/* 02 · bone — the temperature classes. Held for the chapter. */}
+      <HoldToEnd>
+        <Scene scene="bone" padded={false} sweep="none">
+          <ColdChain />
+        </Scene>
+      </HoldToEnd>
+
+      {/* 03 · olive — the chapter, climbing over the classes */}
+      <Scene
+        scene="olive"
+        padded={false}
+        sweep="none"
+        className="lg:-mt-[100vh]"
+      >
         <ColdChainChapter />
       </Scene>
 
-      <Scene scene="crimson" padded={false} sweep="none">
-        <Chapter
-          id="handover"
-          flip
-          eyebrow={<Eyebrow>The handover</Eyebrow>}
-          media={<MediaPlate entry={media.coldHandover} motion="slide" aspect="wide" />}
-        >
-          <h2 className="mt-6 text-3xl font-semibold leading-[1.08] tracking-[-0.03em] md:text-4xl">
-            The last thirty seconds are the ones that get disputed
-          </h2>
-          <p className="mt-5 text-base leading-relaxed text-fg-muted md:text-lg">
-            Everything upstream is preparation for this moment. The rider
-            confirms the temperature class on the checklist, captures the
-            handover, and the OTP closes the order — so a cold-chain claim is
-            settled by evidence rather than by argument.
-          </p>
-        </Chapter>
-      </Scene>
+      {/* 04 · crimson — the handover. Held for the protocol. */}
+      <HoldToEnd>
+        <Scene scene="crimson" padded={false} sweep="none">
+          <Chapter
+            id="handover"
+            flip
+            eyebrow={<Eyebrow>The handover</Eyebrow>}
+            media={<MediaPlate entry={media.coldHandover} motion="slide" aspect="wide" />}
+          >
+            <h2 className="mt-6 text-3xl font-semibold leading-[1.08] tracking-[-0.03em] md:text-4xl">
+              The last thirty seconds are the ones that get disputed
+            </h2>
+            <p className="mt-5 text-base leading-relaxed text-fg-muted md:text-lg">
+              Everything upstream is preparation for this moment. The rider
+              confirms the temperature class on the checklist, captures the
+              handover, and the OTP closes the order — so a cold-chain claim is
+              settled by evidence rather than by argument.
+            </p>
+          </Chapter>
+        </Scene>
+      </HoldToEnd>
 
-      <Scene scene="sand" padded={false} sweep="none">
+      {/* 05 · sand — the protocol, climbing over the handover */}
+      <Scene
+        scene="sand"
+        padded={false}
+        sweep="none"
+        className="lg:-mt-[100vh]"
+      >
         <ColdChainProtocol />
       </Scene>
 

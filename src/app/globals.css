@@ -753,7 +753,19 @@ html.theme-dark {
    excludes phones.
    ========================================================================== */
 .media-zoom {
-  position: relative;
+  /*
+    No `position` here, deliberately.
+
+    This is unlayered CSS, so it outranks every Tailwind utility — setting
+    `position: relative` silently overrode `absolute` on any call site that
+    needed it. The ecosystem artwork is positioned `absolute inset-0`; forced
+    back to `relative` it left the flow with zero height and the photograph
+    simply vanished.
+
+    Every call site already carries its own positioning, which is a
+    precondition anyway: the image inside is `fill`, so its wrapper has to be
+    positioned or the browser has nothing to size it against.
+  */
   overflow: hidden;
 }
 

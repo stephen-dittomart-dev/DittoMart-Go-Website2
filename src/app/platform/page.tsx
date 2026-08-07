@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/layout/page-hero";
 import { Scene } from "@/components/motion/color-scene";
+import { HoldToEnd } from "@/components/motion/hold-to-end";
 import { Chapter, MediaPlate } from "@/components/motion/scene";
 import { Eyebrow } from "@/components/ui/primitives";
 import {
@@ -40,54 +41,102 @@ export default function PlatformPage() {
   return (
     // Inner pages run the tighter section rhythm; see globals.css.
     <div data-density="tight">
-      <Scene scene="ink" padded={false} sweep="none">
-        <PageHero
-          eyebrow="Platform"
-          title="The layer between your order and every fleet that can carry it"
-          highlight={["every", "fleet"]}
-          mode="lines"
-          body="DittoMart Go is not a courier and not a marketplace. It is the intelligence layer that decides what a delivery should cost, who should carry it, and what happens when that goes wrong."
-          primary={{ label: "Book a demo", href: "/contact" }}
-          secondary={{ label: "See the API", href: "/developers" }}
-          meta={[
-            { label: "Engines", value: "4" },
-            { label: "Supply rails", value: "3" },
-            { label: "Decision time", value: "<1s" },
-          ]}
-          visual={<EnginePipelineScene />}
-        />
-      </Scene>
+      {/* ------------------------------------------------------------------
+          Seven overlap boundaries — the longest run on the site.
 
-      <Scene scene="sand" padded={false} sweep="none">
+          `HoldToEnd` pins a band's last screenful and gives it one viewport of
+          hold, during which it recedes and dims; `lg:-mt-[100vh]` on the next
+          band is that same viewport. Four bands here are both — held for the
+          band after them and climbing over the band before them — which is
+          simply `HoldToEnd` carrying the negative margin on its wrapper.
+
+          Nothing inside any band is touched. No z-index: every band is
+          positioned, so a later one paints over an earlier one in DOM order.
+          lg-only.
+
+          The chain runs 1→2, then 5→6→7→8, then 11→12. Bands 3, 4, 9 and 10
+          flow normally — the console and the film are where the page should
+          breathe again after four consecutive handovers.
+          ------------------------------------------------------------------ */}
+
+      {/* 01 · ink — the hero. Held for the architecture band. */}
+      <HoldToEnd>
+        <Scene scene="ink" padded={false} sweep="none">
+          <PageHero
+            eyebrow="Platform"
+            title="The layer between your order and every fleet that can carry it"
+            highlight={["every", "fleet"]}
+            mode="lines"
+            body="DittoMart Go is not a courier and not a marketplace. It is the intelligence layer that decides what a delivery should cost, who should carry it, and what happens when that goes wrong."
+            primary={{ label: "Book a demo", href: "/contact" }}
+            secondary={{ label: "See the API", href: "/developers" }}
+            meta={[
+              { label: "Engines", value: "4" },
+              { label: "Supply rails", value: "3" },
+              { label: "Decision time", value: "<1s" },
+            ]}
+            visual={<EnginePipelineScene />}
+          />
+        </Scene>
+      </HoldToEnd>
+
+      {/* 02 · sand — architecture, climbing over the hero. Not held: the
+          2 → 3 handover was reverted. */}
+      <Scene
+        scene="sand"
+        padded={false}
+        sweep="none"
+        className="lg:-mt-[100vh]"
+      >
         <PlatformArchitecture />
       </Scene>
 
+      {/* 03 · slate — how it works */}
       <Scene scene="slate" padded={false} sweep="none">
         <HowItWorks />
       </Scene>
 
+      {/* 04 · bone — the engines. Flows normally; the 4 → 5 handover was
+          reverted. */}
       <Scene scene="bone" padded={false} sweep="none">
         <Engines />
       </Scene>
 
-      <Scene scene="ember" padded={false} sweep="none">
-        <EnginesChapter />
-        <WalletChapter />
-      </Scene>
+      {/* 05 · ember — engine and wallet chapters. Held for the rails. */}
+      <HoldToEnd>
+        <Scene scene="ember" padded={false} sweep="none">
+          <EnginesChapter />
+          <WalletChapter />
+        </Scene>
+      </HoldToEnd>
 
-      <Scene scene="ink" padded={false} sweep="none">
-        <PlatformRails />
-        <PlatformSequence />
-      </Scene>
+      {/* 06 · ink — rails and sequence. Climbs over the chapters, held for
+          the rider band. */}
+      <HoldToEnd className="lg:-mt-[100vh]">
+        <Scene scene="ink" padded={false} sweep="none">
+          <PlatformRails />
+          <PlatformSequence />
+        </Scene>
+      </HoldToEnd>
 
-      <Scene scene="olive" padded={false} sweep="none">
-        <RiderChapter />
-      </Scene>
+      {/* 07 · olive — the rider. Climbs over the rails, held for analytics. */}
+      <HoldToEnd className="lg:-mt-[100vh]">
+        <Scene scene="olive" padded={false} sweep="none">
+          <RiderChapter />
+        </Scene>
+      </HoldToEnd>
 
-      <Scene scene="crimson" padded={false} sweep="none">
+      {/* 08 · crimson — analytics, climbing over the rider */}
+      <Scene
+        scene="crimson"
+        padded={false}
+        sweep="none"
+        className="lg:-mt-[100vh]"
+      >
         <AnalyticsChapter />
       </Scene>
 
+      {/* 09 · slate — the console and the team who read it */}
       <Scene scene="slate" padded={false} sweep="none">
         <Control />
         <Chapter
@@ -108,14 +157,24 @@ export default function PlatformPage() {
         </Chapter>
       </Scene>
 
+      {/* 10 · the second film */}
       <OperationsFilm />
 
-      <Scene scene="bone" padded={false} sweep="none">
-        <ApiChapter />
-        <PlatformGuarantees />
-      </Scene>
+      {/* 11 · bone — the API and the guarantees. Held for the ask. */}
+      <HoldToEnd>
+        <Scene scene="bone" padded={false} sweep="none">
+          <ApiChapter />
+          <PlatformGuarantees />
+        </Scene>
+      </HoldToEnd>
 
-      <Scene scene="ink" padded={false} sweep="none">
+      {/* 12 · ink — the ask, climbing over the guarantees */}
+      <Scene
+        scene="ink"
+        padded={false}
+        sweep="none"
+        className="lg:-mt-[100vh]"
+      >
         <CTA
           title="See it run against your own volumes"
           body="Bring a week of real order data. We will model the routing, show you the rate card, and tell you honestly where we do not help."
@@ -123,6 +182,7 @@ export default function PlatformPage() {
           secondary={{ label: "Read the docs", href: "/developers" }}
         />
       </Scene>
+
     </div>
   );
 }

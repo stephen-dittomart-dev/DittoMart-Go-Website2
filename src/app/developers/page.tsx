@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PageHero } from "@/components/layout/page-hero";
 import { Scene } from "@/components/motion/color-scene";
+import { HoldToEnd } from "@/components/motion/hold-to-end";
 import { ApiChapter } from "@/components/sections/chapters";
 import { CTA } from "@/components/sections/cta";
 import {
@@ -55,11 +56,34 @@ export default function DevelopersPage() {
         </PageHero>
       </Scene>
 
-      <Scene scene="sand" padded={false} sweep="none">
-        <DevExperience />
-      </Scene>
+      {/* ----------------------------------------------------------------
+          One overlap boundary: 2 → 3.
 
-      <Scene scene="slate" padded={false} sweep="none">
+          `HoldToEnd` pins the experience band on its last screenful and gives
+          it one viewport of hold, during which it recedes and dims;
+          `lg:-mt-[100vh]` on the endpoints band is that same viewport, so the
+          hold and the climb are one number and cannot drift apart.
+
+          Nothing inside either band is touched, and no z-index is involved —
+          both are positioned, so the later one paints over the earlier one in
+          DOM order. lg-only; a band that turns out to fit the frame opts
+          itself out inside `HoldToEnd`.
+          ---------------------------------------------------------------- */}
+
+      {/* 02 · sand — the developer experience, held for the endpoints */}
+      <HoldToEnd>
+        <Scene scene="sand" padded={false} sweep="none">
+          <DevExperience />
+        </Scene>
+      </HoldToEnd>
+
+      {/* 03 · slate — the API chapter and the endpoints, climbing over it */}
+      <Scene
+        scene="slate"
+        padded={false}
+        sweep="none"
+        className="lg:-mt-[100vh]"
+      >
         <ApiChapter />
         <DevEndpoints />
       </Scene>

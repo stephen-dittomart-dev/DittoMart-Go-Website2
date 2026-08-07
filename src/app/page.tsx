@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ChapterRail } from "@/components/motion/chapter-rail";
 import { Scene, SceneBlock } from "@/components/motion/color-scene";
+import { HoldToEnd } from "@/components/motion/hold-to-end";
 import { CTA } from "@/components/sections/cta";
 import { Ecosystem } from "@/components/sections/ecosystem";
 import { FAQ } from "@/components/sections/faq";
@@ -88,54 +89,67 @@ export default function HomePage() {
       {/* 01 · ink — the opening */}
       <HomeStage />
 
-      {/* 02 · sand — the film.
+      {/* ------------------------------------------------------------------
+          Three overlap boundaries: the film, the burst and the routing fork
+          each stop on their last screenful while the band after them climbs
+          over the top.
 
-          It overlaps the hero rather than following it.
+          Two ingredients, and which one a band needs depends on whether it
+          already holds itself:
 
-          `-mt-[100vh]` pulls this band a full screen back up the document, so
-          its top edge sits one viewport before the hero's runway ends. The
-          hero stage is still stuck to the top through all of that, so for
-          that last screen of scroll the rider keeps running underneath while
-          this band climbs over him and takes the frame. `z-30` decides who is
-          on top; the sheet inside the hero is `z-20`.
+            · `HoldToEnd` — for a band that just scrolls. It pins the band's
+              last screenful and gives it exactly one viewport of hold. See
+              that file for why `bottom: 0` cannot do this.
 
-          No JavaScript, no second ScrollTrigger. The overlap is the browser
-          scrolling one box over a stuck one — the only version of this that
-          cannot drift out of sync with the animation it is covering.
+            · `lg:-mt-[100vh]` — on the band doing the climbing. One viewport,
+              the same viewport the hold lasts for.
 
-          Desktop only: below `lg` the hero runway is 168vh and the white
-          intermission never renders, so eating a whole viewport of it would
-          swallow the dissolve that is the handover there.
+          The burst needs no wrapper: it is 580vh of runway around a
+          `sticky top-0` stage already, so it is held by its own mechanism and
+          only the band after it has to be pulled up.
 
-          There is also no `enter="zoom"` any more. That entrance started the
-          band at 1.28× and fully transparent until its top reached 22% of the
-          viewport — so the thing climbing over the hero would have been
-          invisible for most of the climb. */}
+          No z-index anywhere. Every band here is positioned, so a later one
+          paints over an earlier one in DOM order — which is the order they
+          arrive in. The `z-30` that used to sit on the film band was not only
+          unnecessary, it outranked the ecosystem that now climbs over it.
+
+          All of it is lg-only. Below that every band flows as before.
+          ------------------------------------------------------------------ */}
+
+      {/* 02 · sand — the film. Climbs over the hero, then holds while the
+          ecosystem climbs over it. */}
+      <HoldToEnd className="lg:-mt-[100vh]">
+        <Scene scene="sand" id="film" padded={false} sweep="none">
+          <Film />
+        </Scene>
+      </HoldToEnd>
+
+      {/* 03 · crimson — the ecosystem plate, climbing over the film */}
       <Scene
-        scene="sand"
-        id="film"
+        scene="crimson"
+        id="ecosystem"
         padded={false}
         sweep="none"
-        className="lg:z-30 lg:-mt-[100vh]"
+        className="lg:-mt-[100vh]"
       >
-        <Film />
-      </Scene>
-
-      {/* 03 · crimson — the ecosystem plate */}
-      <Scene scene="crimson" id="ecosystem" padded={false} sweep="none">
         <Ecosystem />
       </Scene>
 
-      {/* 04 · ink — the pinned burst */}
+      {/* 04 · ink — the burst. Holds itself; nothing to add here. */}
       <NetworkBurst />
 
-      {/* 05 · bone — the routing fork */}
-      <Scene scene="bone" id="routing" padded={false} sweep="none">
-        <RoutingDecision />
-      </Scene>
+      {/* 05 · bone — the routing fork. Climbs over the burst, then holds while
+          the moat band climbs over it. */}
+      <HoldToEnd className="lg:-mt-[100vh]">
+        <Scene scene="bone" id="routing" padded={false} sweep="none">
+          <RoutingDecision />
+        </Scene>
+      </HoldToEnd>
 
-      {/* 06 · teal — the wallet gate and the moat, one held green stage */}
-      <MoatBand />
+      {/* 06 · teal — the wallet gate and the moat, climbing over the fork */}
+      <div className="lg:-mt-[100vh]">
+        <MoatBand />
+      </div>
 
       {/* 07 · slate — the numbers */}
       <Scene scene="slate" id="metrics" padded={false} sweep="none">

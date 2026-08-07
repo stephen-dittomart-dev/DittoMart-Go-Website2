@@ -71,9 +71,23 @@ const STEP = 0.92;
 const FLIGHT = 1.5;
 /** The carton shutting again once the last mark has landed. */
 const CLOSE = 1;
+/**
+ * Dead scroll at the very end, and it is load-bearing.
+ *
+ * The band after this one is pulled up a viewport so it can climb over the
+ * held burst — which means it starts covering the frame a viewport before the
+ * runway ends. Without a tail, that viewport was the last mark still in
+ * flight: ONDC was thrown, and the next screen began rising over it before it
+ * had landed.
+ *
+ * 2.4 units against a 700vh runway is very close to that one viewport, so the
+ * climb now happens entirely after the ninth mark has settled and the carton
+ * has shut.
+ */
+const TAIL = 2.4;
 /** When the last mark has finished flying — where the closing begins. */
 const EMPTY = OPEN + (MARKS.length - 1) * STEP + FLIGHT;
-const TOTAL = EMPTY + CLOSE;
+const TOTAL = EMPTY + CLOSE + TAIL;
 
 /**
  * Where mark `i` comes to rest, and how it gets there.
@@ -302,7 +316,7 @@ export function NetworkBurst() {
       style={sceneVars("ink")}
       className="relative isolate scroll-mt-24 bg-bg text-fg"
     >
-      <div ref={runway} className="relative h-[360vh] lg:h-[580vh]">
+      <div ref={runway} className="relative h-[360vh] lg:h-[700vh]">
         <div className="sticky top-0 flex h-dvh items-center justify-center overflow-hidden">
           {/* wash */}
           <div

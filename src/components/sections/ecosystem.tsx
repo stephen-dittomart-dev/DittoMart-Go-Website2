@@ -99,7 +99,13 @@ export function Ecosystem() {
               fill
               sizes="100vw"
               placeholder="blur"
-              className="object-cover object-center"
+              /* A touch of blur. The photograph has readable signage and a
+                 hundred small highlights in it, and the copy that sits on top
+                 has to win — softening the plate by two pixels is enough to
+                 push it behind the words without losing what it is a picture
+                 of. Scaled slightly past the frame so the blur cannot pull
+                 transparent edges in. */
+              className="scale-[1.04] object-cover object-center blur-[2px]"
             />
           </span>
         </div>

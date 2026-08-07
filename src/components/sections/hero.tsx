@@ -54,14 +54,18 @@ const VISION_CARDS = [
  * and leaves completely. It used to stop with the last card centred, which
  * meant the train sat frozen mid-screen for the last fifth of the runway.
  *
- * The last card passes the middle of the screen at roughly 75% of that travel
- * — `(1175 + LEAD + vw/2) / (HALF + LEAD + vw)`, which lands between 0.72 and
- * 0.79 across every plausible viewport. The convoy's duration below is set so
- * that 75% mark coincides with the moment the film band starts climbing, and
- * the two then run together to the end.
+ * The last card passes the middle of the screen at roughly 78% of that travel
+ * — `(1445 + LEAD + vw/2) / (HALF + LEAD + vw)`, which lands between 0.74 and
+ * 0.82 across every plausible viewport. The convoy's duration below is set so
+ * that mark falls where the film band starts climbing, and the two then run
+ * together to the end.
+ *
+ * Both numbers grew when the statement joined the head of the row: the box has
+ * to be wide enough to hold every item, and the lead has to reach the
+ * *rightmost* edge of the content — which is now the wordmark, not the rider.
  */
-const CONVOY_HALF = 1330;
-const CONVOY_LEAD = 1160;
+const CONVOY_HALF = 1600;
+const CONVOY_LEAD = 1480;
 
 /**
  * Home hero.
@@ -528,6 +532,50 @@ export function Hero({ ready = true }: { ready?: boolean }) {
                     />
                   </div>
                 </div>
+
+                {/*
+                  The statement, riding at the head of the convoy.
+
+                  It sits to the *right* of the rider, which is what puts it
+                  first: the row travels left to right, so its rightmost
+                  element is the one that comes through the left edge of the
+                  frame first. The reader gets the words, then the rider, then
+                  the cards he is pulling.
+
+                  Sized against the rider rather than in absolute units — half
+                  its 34rem, so the two stay in proportion at any zoom.
+
+                  The depth is stacked `text-shadow`s, not a filter or an SVG.
+                  Eight one-pixel offsets darkening as they recede build the
+                  extruded face, and a single soft shadow underneath sits it on
+                  the sheet. It costs one paint, scales cleanly, and stays
+                  selectable text — a rasterised 3D word would do none of that.
+                */}
+                <div
+                  aria-hidden
+                  className="-ml-[3rem] shrink-0 pb-[6rem] leading-[0.82]"
+                  style={{
+                    color: "#7c3aed",
+                    textShadow: [
+                      "1px 1px 0 #6d28d9",
+                      "2px 2px 0 #6423cf",
+                      "3px 3px 0 #5b21b6",
+                      "4px 4px 0 #501c9e",
+                      "5px 5px 0 #451787",
+                      "6px 6px 0 #3b1370",
+                      "7px 7px 0 #310f5b",
+                      "8px 8px 0 #280c49",
+                      "14px 20px 26px rgba(40,12,73,0.28)",
+                    ].join(", "),
+                  }}
+                >
+                  <span className="block text-[8.5rem] font-black tracking-[-0.045em]">
+                    OUR
+                  </span>
+                  <span className="block text-[8.5rem] font-black tracking-[-0.045em]">
+                    VISION
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -580,7 +628,7 @@ export function Hero({ ready = true }: { ready?: boolean }) {
                 className="mt-7 max-w-xl text-base leading-relaxed text-white/75 [text-shadow:0_1px_12px_rgba(0,0,0,0.6)] md:text-lg"
               >
                 Adloggs, Shiprocket Quick, Flash by Shadowfax, Pidge, Quicka,
-                Owter, Ek Bharath, Pro Routing and ONDC — carrying Ola and
+                Qwqer, Ek Bharath, Pro Routing and ONDC — carrying Ola and
                 Rapido. Nine networks, one API call.
               </p>
 

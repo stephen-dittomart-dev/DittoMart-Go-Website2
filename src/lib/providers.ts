@@ -64,9 +64,9 @@ export const providers: Provider[] = [
     verified: true,
   },
   {
-    id: "owter",
-    name: "Owter",
-    short: "Owter",
+    id: "qwqer",
+    name: "Qwqer",
+    short: "Qwqer",
     rail: "3PL",
     icon: "Truck",
     tagline: "Intracity fleet",
