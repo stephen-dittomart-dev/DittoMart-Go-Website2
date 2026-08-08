@@ -173,6 +173,25 @@ export function HoldToEnd({
               filter: "blur(9px) brightness(0.55)",
               ease: "none",
               transformOrigin: "50% 42%",
+              /* Promoted for the duration of the hold, and only then.
+              
+                 Scaling an element normally re-rasterises it so the result
+                 stays crisp — and these bands contain up to a dozen very large
+                 `filter: blur()` decorations, every one of which has to be
+                 recomputed when that happens. That is the single most
+                 expensive thing on the page during a hand-over, and it is
+                 paid on every scrub frame.
+              
+                 `will-change: transform` tells the compositor to rasterise
+                 once and transform the texture instead. The usual objection —
+                 that scaled-up texture looks soft — cannot apply here: the
+                 same tween is blurring the band to nine pixels. Softness is
+                 the effect.
+              
+                 Cleared on completion, because a permanent `will-change`
+                 holds a full-viewport layer in memory for every band that has
+                 ever been held. */
+              willChange: "transform, filter",
               scrollTrigger: {
                 trigger: run,
                 start: () => "top bottom-=" + late(),
@@ -192,6 +211,9 @@ export function HoldToEnd({
                 if (this.progress() < 0.002) {
                   el.style.filter = "";
                   el.style.transform = "";
+                  el.style.willChange = "";
+                } else if (!el.style.willChange) {
+                  el.style.willChange = "transform, filter";
                 }
               },
             }

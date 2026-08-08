@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { gsap, prefersReducedMotion } from "@/lib/motion";
+import { providers } from "@/lib/providers";
 
 /**
  * The routing mesh — the home hero's living background.
@@ -44,7 +45,15 @@ import { gsap, prefersReducedMotion } from "@/lib/motion";
  */
 
 type Props = {
-  /** Node count at desktop width. Halved automatically on small screens. */
+  /**
+   * Node count at desktop width. Halved automatically on small screens.
+   *
+   * Back to the full three hundred. It was thinned when the proximity lines
+   * came out, on the theory that the ring could not be read through that many
+   * dots — but what actually separates them is not scarcity, it is that the
+   * ring's dots carry a hard white core and these do not. With that in place
+   * the cloud can be as dense as it ever was and the ring still resolves.
+   */
   count?: number;
   /** Blob centre as a fraction of the canvas box. */
   originX?: number;
@@ -76,8 +85,37 @@ const WIRE_RGB = "255,168,96";
 
 /** Perspective focal length, in the same units as the blob radius. */
 const FOV = 560;
-/** Screen distance under which two nodes get an ambient proximity link. */
-const LINK_DIST = 94;
+/* --------------------------------------------------------------------------
+   The orbit.
+
+   Taken from the real provider list rather than written out here, so the ring
+   is the networks — in the order the rest of the site meets them, ONDC first —
+   and cannot drift out of step with the pages that list them.
+   -------------------------------------------------------------------------- */
+const ORBIT = providers.map((p) => p.short || p.name);
+/** Ring radius, as a fraction of the nucleus's own scale. */
+const ORBIT_R = 0.62;
+/**
+ * How far the ellipse is squashed vertically — the ring's apparent lean.
+ *
+ * Not lower than this. The nucleus carries a wordmark ring of its own, and at
+ * 0.4 the orbit was wider than it horizontally but *shorter* vertically — so
+ * its top and bottom dots sat inside that ring and the two read as one muddle.
+ * The orbit has to enclose the nucleus on both axes to be a ring around it.
+ */
+const ORBIT_FLAT = 0.68;
+/** How far behind the head the tail runs, in segments. */
+const ORBIT_TRAIL = 2;
+/**
+ * Seconds per link. One connection is being made at any moment, never two.
+ *
+ * Nearly twice what it was. At 0.9s the line crossed faster than the eye
+ * follows it, and the name attached to each arrival was gone before it could
+ * be read. Everything else in here is expressed as a fraction of this, so
+ * slowing it slows the whole figure in step — the travel, the dwell at each
+ * dot and the name that goes with it.
+ */
+const ORBIT_HOP = 1.7;
 
 /* --------------------------------------------------------------------------
    The routes.
@@ -113,6 +151,22 @@ type RouteSpec = {
   /** `true` for the main route: larger type, brighter line, teal endpoint. */
   primary?: boolean;
 };
+
+/**
+ * The three route chains, off.
+ *
+ * They did the same job the orbit does — draw a connection, name the thing it
+ * reaches — but strung across the whole frame rather than around the core.
+ * With both running, the canvas had two systems making connections and
+ * labelling them, and the routes' long straight lines cut across everything
+ * else with nothing to anchor them. That was the mess.
+ *
+ * The orbit inherits the job and does it in one place, at the centre, tied to
+ * the actual network list. These are kept rather than deleted because the
+ * copy they carry is good and the chains may earn their place again somewhere
+ * with room for them. Flip to `true` and they come back exactly as they were.
+ */
+const ROUTES_ON = false;
 
 const ROUTES: RouteSpec[] = [
   {
@@ -380,7 +434,6 @@ export function RoutingMesh({
 
     /* ---------- the frame ---------- */
 
-    const cells = new Map<number, number[]>();
     const order: number[] = nodes.map((_, i) => i);
     let t = 0;
     let yaw = 0;
@@ -407,6 +460,8 @@ export function RoutingMesh({
     let core = reduced ? 1 : 0;
     /** The wordmark ring's own angle, in radians. */
     let ring = 0;
+    /** The orbit's own angle. Slower than the wordmark, and the other way. */
+    let orbitA = 0;
 
     /**
      * Bind one route's stops to fresh cloud nodes.
@@ -451,58 +506,208 @@ export function RoutingMesh({
 
     const reanchorAll = () => ROUTES.forEach((_, r) => reanchor(r));
 
-    /** The proximity haze. Its own function purely so the arrival can skip it. */
-    const drawLinks = () => {
+    /**
+     * The orbit — the networks, ringed around the core.
+     *
+     * This replaced the proximity haze that used to live here: every node in
+     * the cloud wired to whichever neighbours happened to be near it on
+     * screen. That said "things are connected" but nothing more, and with
+     * three hundred nodes it said it very loudly — a permanent web of faint
+     * lines that the routes and the nucleus both had to compete with.
+     *
+     * A ring of nine says something specific instead. Nine is the number of
+     * networks, the names are the networks, and they are drawn *around* the
+     * core because that is the actual shape of the product: one thing in the
+     * middle, nine reachable through it.
+     *
+     * The dots are only dots. Nothing joins them permanently — a nine-sided
+     * outline sitting there is a shape, and a shape is not what this is about.
+     * The one line on screen is the connection currently being made, crawling
+     * from dot to dot, and it is short: the tail lets go of the segment behind
+     * as the head takes the one ahead.
+     *
+     * One name at a time, on the dot the head has reached, in and out with the
+     * arrival. Nine names on a ring is the messy version and no amount of
+     * placement fixes it.
+     */
+    const drawOrbit = (cx: number, cy: number, base: number) => {
       const g = ctx!;
-      cells.clear();
-      const cs = LINK_DIST;
-      for (let i = 0; i < n; i++) {
-        const key = ((p: Node) =>
-          ((p.x / cs) | 0) * 73856093 + ((p.y / cs) | 0) * 19349663)(nodes[i]);
-        const bucket = cells.get(key);
-        if (bucket) bucket.push(i);
-        else cells.set(key, [i]);
+      const N = ORBIT.length;
+      const R = base * ORBIT_R;
+
+      /* A true ellipse centred on the core, not a projected circle.
+      
+         The first version put the ring in a tilted plane and pushed it through
+         the same perspective divide the cloud uses. That is honest 3D and it
+         is exactly why it looked wrong: perspective maps a tilted circle to an
+         ellipse whose centre is *not* the projection of the circle's centre —
+         it slides toward the near side. So the ring sat off the nucleus, and
+         its radius was visibly larger on the near half than the far half.
+      
+         Here the position is a plain ellipse: constant radius, squashed
+         vertically, centred on `cx`/`cy` by construction. Depth survives as a
+         number used only for size, brightness and paint order, which is what
+         was carrying the three-dimensionality anyway. */
+      const pts: { x: number; y: number; d: number }[] = [];
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * Math.PI * 2 + orbitA;
+        pts.push({
+          x: cx + Math.cos(a) * R,
+          y: cy + Math.sin(a) * R * ORBIT_FLAT,
+          // 1 at the near (lower) edge, 0 at the far edge
+          d: (Math.sin(a) + 1) / 2,
+        });
       }
 
-      g.lineWidth = 0.7;
-      // Only four of the eight neighbours, so every pair is visited once.
-      const NEIGHBOURS = [
-        [0, 0],
-        [1, 0],
-        [-1, 1],
-        [0, 1],
-        [1, 1],
-      ];
-      for (const [key, bucket] of cells) {
-        for (const [dx, dy] of NEIGHBOURS) {
-          const other =
-            dx === 0 && dy === 0
-              ? bucket
-              : cells.get(key + dx * 73856093 + dy * 19349663);
-          if (!other) continue;
-          const same = other === bucket;
-          for (let a = 0; a < bucket.length; a++) {
-            for (let b = same ? a + 1 : 0; b < other.length; b++) {
-              const p1 = nodes[bucket[a]];
-              const p2 = nodes[other[b]];
-              const d = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-              if (d >= LINK_DIST) continue;
-              // fade with distance, with how far back the pair sits, and with
-              // how far through the wiring-up the cloud is
-              const alpha =
-                (1 - d / LINK_DIST) *
-                0.16 *
-                Math.min(p1.depth, p2.depth) *
-                reveal;
-              g.strokeStyle = `rgba(${LINK_RGB},${alpha.toFixed(3)})`;
-              g.beginPath();
-              g.moveTo(p1.x, p1.y);
-              g.lineTo(p2.x, p2.y);
-              g.stroke();
-            }
-          }
-        }
+      /* The head, in segments, eased inside each one.
+      
+         `floor` picks the segment and the ease shapes the crossing, so the
+         head accelerates away from a dot and settles onto the next rather than
+         sliding at a constant rate past both. That settling is what makes each
+         arrival read as an arrival. */
+      const raw = clock / ORBIT_HOP;
+      const seg = Math.floor(raw);
+      const f = raw - seg;
+      const eased = f < 0.5 ? 4 * f ** 3 : 1 - (-2 * f + 2) ** 3 / 2;
+      const headAt = seg + eased;
+      const tailAt = headAt - ORBIT_TRAIL;
+
+      const at = (t: number) => {
+        const i = Math.floor(t);
+        const k = t - i;
+        const A = pts[((i % N) + N) % N];
+        const B = pts[(((i + 1) % N) + N) % N];
+        return { x: A.x + (B.x - A.x) * k, y: A.y + (B.y - A.y) * k };
+      };
+
+      /* The connection: a length of line that crawls the ring rather than a
+         ring that fills in.
+      
+         Head and tail are the same distance apart at all times — `ORBIT_TRAIL`
+         segments — so the line is always exactly that long. When the head
+         settles on a dot the tail is settling on the dot two back, and it
+         releases the segment behind it as the head takes the one ahead. There
+         is never a completed polygon on screen, which is the whole point: the
+         dots are dots, and the only line is the connection currently being
+         made. */
+      g.lineCap = "round";
+      g.lineJoin = "round";
+      g.strokeStyle = `rgba(${WIRE_RGB},${(0.8 * reveal).toFixed(3)})`;
+      g.lineWidth = 1.6;
+      g.beginPath();
+      const start = at(tailAt);
+      g.moveTo(start.x, start.y);
+      // through every node the line currently spans, then to the head
+      for (let k = Math.ceil(tailAt); k < headAt; k++) {
+        const q = pts[((k % N) + N) % N];
+        g.lineTo(q.x, q.y);
       }
+      const tip = at(headAt);
+      g.lineTo(tip.x, tip.y);
+      g.stroke();
+
+      // the head itself, a bright point riding the end of the line
+      const hs = 20;
+      g.globalCompositeOperation = "lighter";
+      g.globalAlpha = reveal;
+      g.drawImage(sprites[2], tip.x - hs / 2, tip.y - hs / 2, hs, hs);
+      g.globalAlpha = 1;
+      g.globalCompositeOperation = "source-over";
+
+      /* Dots, back to front, each lit by how close the head is to it.
+      
+         A dot ahead of the head lights as it is approached — inside the last
+         part of a segment — and dots behind fade out over the length of the
+         trail. That is the sequence asked for: one lights, the line travels to
+         it, and the next lights as it arrives. */
+      const glowAt = (i: number) => {
+        let d = i - headAt;
+        d -= Math.round(d / N) * N;              // shortest way round the ring
+        return d >= 0 ? clamp01(1 - d / 0.55) : clamp01(1 + d / ORBIT_TRAIL);
+      };
+
+      const order2 = Array.from({ length: N }, (_, i) => i).sort(
+        (a, b) => pts[a].d - pts[b].d
+      );
+      for (const i of order2) {
+        const q = pts[i];
+        const lit2 = glowAt(i);
+        const depth = 0.68 + 0.32 * q.d;
+        /* Brighter and larger than a cloud node on purpose. They occupy the
+           same frame as three hundred other dots, and a ring made of the same
+           dot as the backdrop is not a ring — it is more backdrop. */
+        const gs = (32 + 26 * lit2) * depth;
+
+        g.globalCompositeOperation = "lighter";
+        g.globalAlpha = reveal * (0.62 + 0.38 * lit2) * depth;
+        g.drawImage(sprites[lit2 > 0.5 ? 0 : 1], q.x - gs / 2, q.y - gs / 2, gs, gs);
+        g.globalAlpha = 1;
+        g.globalCompositeOperation = "source-over";
+
+        g.beginPath();
+        /* A hard white centre, which no cloud node has. The glow alone was
+           not enough to tell them apart — the backdrop is made of glows — but
+           a solid core reads as a different kind of object at any size, and it
+           is what makes nine dots legible as a set rather than as nine more
+           stars. */
+        g.arc(q.x, q.y, (3.6 + 2.2 * lit2) * depth, 0, Math.PI * 2);
+        g.fillStyle = `rgba(255,255,255,${((0.86 + 0.14 * lit2) * reveal).toFixed(3)})`;
+        g.fill();
+      }
+
+      /* The name tag, on the dot the head is on.
+      
+         Up as the head arrives, out as it leaves — so exactly one name is on
+         screen and only while its connection is being made. `f` is the
+         position inside the current segment, which makes both edges free: the
+         tag is absent while the line is crossing and present once it has
+         landed. */
+      /* The name of whichever dot the head is nearest — every one of the
+         nine, all the way round.
+      
+         It used to be skipped for dots on the left, where the tag would land
+         on the copy column, so those networks were never named. Naming some
+         and not others is worse than a plate briefly over a line of text, so
+         the plate is opaque enough to read wherever it lands and every dot
+         gets its turn.
+      
+         Keyed to the head's distance from the dot rather than to a slice of
+         the segment, which is what ties it to the travel: full while the head
+         is settled on a dot, gone by the middle of a crossing, back as it
+         settles on the next. Slow the crossing and the name simply stays
+         longer — there is no second number to keep in step.
+      
+         Still nothing below `lg`: there the column is the full width and the
+         ring is behind it, so a name is not a label, it is text over text. */
+      if (width < 1024) return;
+
+      const near = Math.round(headAt);
+      const target = ((near % N) + N) % N;
+      const q = pts[target];
+
+      const name = ORBIT[target].toUpperCase();
+      const la = reveal * clamp01(1 - Math.abs(headAt - near) / 0.4);
+      if (la <= 0.002) return;
+      g.font = "600 10.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      const half = g.measureText(name).width / 2;
+      const lx = Math.min(Math.max(q.x, half + 14), width - half - 14);
+      const ly = q.y - 22;
+
+      g.fillStyle = `rgba(7,9,13,${(0.9 * la).toFixed(3)})`;
+      g.beginPath();
+      if (roundRectOk) {
+        g.roundRect(lx - half - 9, ly - 9, half * 2 + 18, 18, 9);
+        g.fill();
+      } else {
+        g.fillRect(lx - half - 9, ly - 9, half * 2 + 18, 18);
+      }
+      g.fillStyle = `rgba(255,236,220,${(0.95 * la).toFixed(3)})`;
+      g.fillText(name, lx, ly);
+
+      g.textAlign = "left";
+      g.textBaseline = "alphabetic";
     };
 
     /**
@@ -685,7 +890,7 @@ export function RoutingMesh({
          has every node inside every other node's link radius, so this is
          exactly when the pair test would degenerate into the full quadratic
          scan the spatial hash exists to avoid. */
-      if (reveal > 0.002) drawLinks();
+
 
       /* --- nodes, back to front, additively --- */
       order.sort((a, b) => nodes[a].depth - nodes[b].depth);
@@ -697,9 +902,36 @@ export function RoutingMesh({
            pixel across, and a sub-pixel sprite does not read as a distant
            object — it reads as nothing at all, and the arrival begins with an
            empty frame. Slightly-too-large-when-far is the right lie. */
-        const s = p.size * p.depth * 7.5 * (0.34 + 0.66 * arrS);
-        ctx.globalAlpha = Math.max(0, Math.min(1, (p.depth - 0.55) * 1.5)) * 0.85;
+        /* The flash.
+        
+           Each node carries its own phase, so at any moment a handful of them
+           are mid-spike and the rest are at rest — which is what reads as
+           current running through the cloud rather than as everything
+           breathing together. The spike is short against its cycle, a half
+           sine so it has no corners, and it lifts size and brightness at once
+           because a flash that only brightens looks like a fade.
+        
+           `seed` is reused as the phase. It is already a per-node random and
+           is otherwise only used for the breathing, so the two are decorrelated
+           by construction. */
+        const fp = (t * 0.42 + p.seed) % 1;
+        const fl = fp < 0.055 ? Math.sin((fp / 0.055) * Math.PI) : 0;
+
+        const s = p.size * p.depth * 7.5 * (0.34 + 0.66 * arrS) * (1 + fl * 0.9);
+        ctx.globalAlpha =
+          Math.max(0, Math.min(1, (p.depth - 0.55) * 1.5)) * (0.85 + fl * 0.6);
         ctx.drawImage(sprites[p.color], p.x - s / 2, p.y - s / 2, s, s);
+
+        /* A hard point at the peak of the spike only. It is what makes it a
+           flash rather than a swell — but it must not persist, or the cloud
+           acquires the very cores that tell the ring apart from it. */
+        if (fl > 0.72) {
+          ctx.globalAlpha = (fl - 0.72) * 3.5 * 0.9;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 1.05 * p.depth, 0, Math.PI * 2);
+          ctx.fillStyle = "#fff";
+          ctx.fill();
+        }
       }
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = "source-over";
@@ -708,8 +940,12 @@ export function RoutingMesh({
          plates and are the one thing here that must never be read through
          something else. */
       drawNucleus(cx, cy, arrS);
+      if (reveal > 0.002) {
+        // the same `base` the nucleus uses, so the ring is locked to it
+        drawOrbit(cx, cy, spread * arrS * (0.72 + 0.28 * core));
+      }
 
-      ROUTES.forEach((_, r) => drawRoute(r));
+      if (ROUTES_ON) ROUTES.forEach((_, r) => drawRoute(r));
     };
 
     /**
@@ -879,6 +1115,9 @@ export function RoutingMesh({
       );
       // one revolution in roughly seventeen seconds — moving, never busy
       ring += 0.006 * ratio;
+      /* The orbit turns the other way and slower still. Two rings going the
+         same way at similar rates read as one wobbling object. */
+      orbitA -= 0.0022 * ratio;
 
       t += 0.006 * ratio;
       /* It tumbles on the way in and settles to its ambient rate as it lands.
@@ -900,10 +1139,12 @@ export function RoutingMesh({
          offsets differ, is a different moment for each of the three. The wrap
          lands inside that route's blank gap, so there is nothing on screen to
          jump when its stops move to new nodes. */
-      for (let r = 0; r < ROUTES.length; r++) {
-        const rt = (clock + ROUTES[r].offset) % routeCycle(ROUTES[r]);
-        if (rt < lastT[r]) reanchor(r);
-        lastT[r] = rt;
+      if (ROUTES_ON) {
+        for (let r = 0; r < ROUTES.length; r++) {
+          const rt = (clock + ROUTES[r].offset) % routeCycle(ROUTES[r]);
+          if (rt < lastT[r]) reanchor(r);
+          lastT[r] = rt;
+        }
       }
 
       /* The first bind waits for the cloud to reach its positions — and now
@@ -914,7 +1155,7 @@ export function RoutingMesh({
          the frame. */
       if (arrive >= 1 && warmup < 34) {
         warmup++;
-        if (warmup === 34) reanchorAll();
+        if (warmup === 34 && ROUTES_ON) reanchorAll();
       }
 
       draw();
@@ -938,7 +1179,7 @@ export function RoutingMesh({
       clock = routeLit(ROUTES[0]) + ROUTE_HOLD * 0.5;
       // settle the eased positions, bind the stops, then draw the one frame
       for (let i = 0; i < 40; i++) draw();
-      reanchorAll();
+      if (ROUTES_ON) reanchorAll();
       draw();
     } else {
       start();

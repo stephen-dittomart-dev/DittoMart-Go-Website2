@@ -78,10 +78,32 @@ export function Header() {
      * to the header itself are skipped, which is what makes this keep working
      * while the mega menu or the mobile drawer is covering the probe point.
      */
+    /* The probe is throttled, and the bar's own height is cached.
+     *
+     * `elementsFromPoint` is a full hit-test: it resolves style and layout for
+     * the whole document before it can answer. Running it — plus a
+     * `getBoundingClientRect` on the bar — on every scroll frame was the one
+     * piece of per-frame work every page on the site shared, measured at very
+     * nearly one of each per frame.
+     *
+     * It does not need that rate. What it detects is crossing from one band
+     * into the next, which happens a handful of times per page, and the
+     * palette it feeds transitions over 500ms anyway — so a probe every
+     * ~120ms is indistinguishable from one every frame, at a fiftieth of the
+     * cost. The height only changes when the bar condenses or the window
+     * resizes, both of which invalidate it explicitly. */
+    let probeAt = 0;
+    let barH = 0;
+
     const readScene = () => {
       const header = headerRef.current;
       if (!header) return;
-      const y = header.getBoundingClientRect().height + 8;
+      const now = performance.now();
+      if (now - probeAt < 120) return;
+      probeAt = now;
+
+      if (!barH) barH = header.getBoundingClientRect().height;
+      const y = barH + 8;
       const stack = document.elementsFromPoint(
         Math.round(window.innerWidth / 2),
         Math.round(y)
@@ -122,12 +144,19 @@ export function Header() {
       requestAnimationFrame(update);
     };
 
+    // both invalidate the cached height, and both want an immediate re-probe
+    const onResize = () => {
+      barH = 0;
+      probeAt = 0;
+      onScroll();
+    };
+
     update();
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
     };
   }, [open, mobileOpen]);
 

@@ -29,6 +29,37 @@ export type Provider = {
 };
 
 export const providers: Provider[] = [
+  /*
+    ONDC first, deliberately.
+
+    Every network section on the site iterates this array in order — the home
+    burst, the /network grid, the footer rail, the structured data — so the
+    order here is the order the reader meets them in, and ONDC is the rail
+    that carries Ola and Rapido and the one worth leading with. It used to sit
+    last simply because it was added last.
+
+    Safe to reorder: the logos are keyed by `id` in `network-marks.ts`
+    precisely so that this could be done without a parallel array quietly
+    pairing the wrong mark with the wrong network. Nothing indexes this array
+    by position.
+  */
+  {
+    id: "ondc",
+    name: "ONDC",
+    short: "ONDC",
+    rail: "ONDC",
+    icon: "Globe2",
+    tagline: "Ola · Rapido, over the open network",
+    body: "The open network rail. Through ONDC's LOG10 logistics domain we reach Ola and Rapido capacity without a bilateral contract with either — and we can sell our own fleet back to the network when riders would otherwise sit idle.",
+    strengths: [
+      "Ola and Rapido capacity via one integration",
+      "No bilateral contract required",
+      "Sell idle fleet back to the network",
+    ],
+    bestFor: "National reach and idle-fleet monetisation",
+    coverage: "ONDC network",
+    verified: true,
+  },
   {
     id: "adloggs",
     name: "Adloggs",
@@ -164,23 +195,6 @@ export const providers: Provider[] = [
     bestFor: "Multi-drop sequencing and ETA accuracy",
     coverage: "All rails",
     verified: false,
-  },
-  {
-    id: "ondc",
-    name: "ONDC",
-    short: "ONDC",
-    rail: "ONDC",
-    icon: "Globe2",
-    tagline: "Ola · Rapido, over the open network",
-    body: "The open network rail. Through ONDC's LOG10 logistics domain we reach Ola and Rapido capacity without a bilateral contract with either — and we can sell our own fleet back to the network when riders would otherwise sit idle.",
-    strengths: [
-      "Ola and Rapido capacity via one integration",
-      "No bilateral contract required",
-      "Sell idle fleet back to the network",
-    ],
-    bestFor: "National reach and idle-fleet monetisation",
-    coverage: "ONDC network",
-    verified: true,
   },
 ];
 

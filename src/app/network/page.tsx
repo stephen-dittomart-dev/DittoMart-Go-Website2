@@ -45,7 +45,7 @@ export default function NetworkPage() {
             title="Nine delivery networks behind one integration"
             highlight={["Nine", "networks"]}
             mode="lines"
-            body="Adloggs, Shiprocket Quick, Qwqer, Flash by Shadowfax, Quicka, Pidge, Ek Bharath, Pro Routing and the ONDC rail carrying Ola and Rapido. You call one endpoint; we decide which of them moves your parcel."
+            body="The ONDC rail carrying Ola and Rapido, plus Adloggs, Shiprocket Quick, Qwqer, Flash by Shadowfax, Quicka, Pidge, Ek Bharath and Pro Routing. You call one endpoint; we decide which of them moves your parcel."
             primary={{ label: "Talk to sales", href: "/contact" }}
             secondary={{ label: "See the API", href: "/developers" }}
             meta={[

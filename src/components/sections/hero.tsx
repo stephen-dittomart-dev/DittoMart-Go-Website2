@@ -1439,9 +1439,9 @@ export function Hero({ ready = true }: { ready?: boolean }) {
                 data-hero="lede"
                 className="mt-5 max-w-2xl text-[0.95rem] leading-[1.6] text-white/82 [text-shadow:0_1px_14px_rgba(0,0,0,0.7)] sm:mt-7 sm:text-base sm:leading-relaxed md:text-lg"
               >
-                Adloggs, Shiprocket Quick, Flash by Shadowfax, Pidge, Quicka,
-                Qwqer, Ek Bharath, Pro Routing and ONDC — carrying Ola and
-                Rapido. Nine networks, one API call. The money moves with it. 
+                ONDC — carrying Ola and Rapido — plus Adloggs, Shiprocket
+                Quick, Flash by Shadowfax, Pidge, Quicka, Qwqer, Ek Bharath and
+                Pro Routing. Nine networks, one API call. The money moves with it. 
                 Top up your wallet by UPI, Razorpay
                 or PhonePe; every order deducts at your contracted rate before a rider is ever called.
                 Monthly GST invoice raised automatically, weekly NEFT settlement, and no receivables to chase.
@@ -1486,7 +1486,7 @@ export function Hero({ ready = true }: { ready?: boolean }) {
                  genuinely short — a phone in landscape, or a small handset.
                  Losing an invitation to scroll costs nothing; losing the
                  bottom of the call to action costs a conversion. */
-              className="mt-8 flex items-center gap-3 [@media(max-height:720px)]:hidden md:absolute md:-bottom-2 md:left-1/2 md:mt-0 md:-translate-x-1/2 md:[@media(max-height:720px)]:flex"
+              className="mt-6 flex items-center gap-3 [@media(max-height:720px)]:hidden sm:mt-8 md:absolute md:-bottom-2 md:left-1/2 md:mt-0 md:-translate-x-1/2 md:[@media(max-height:720px)]:flex"
             >
               <span className="font-mono text-2xs uppercase tracking-[0.24em] text-white/50">
                 Scroll to route

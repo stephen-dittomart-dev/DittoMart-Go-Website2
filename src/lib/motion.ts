@@ -46,7 +46,35 @@ export function registerGsap() {
   );
   gsap.registerPlugin(...plugins);
   gsap.defaults({ ease: EASE.out3, duration: DUR.reveal });
-  ScrollTrigger.config({ ignoreMobileResize: true });
+
+  /*
+   * `limitCallbacks` is the one that matters on a page with two hundred
+   * scroll-driven elements. Without it every trigger evaluates and reports its
+   * enter/leave state on every scroll frame, whether or not anything changed;
+   * with it, a callback fires only on an actual crossing. Scrubbed tweens are
+   * untouched — they read progress directly — so nothing looks different, there
+   * is simply less bookkeeping per frame.
+   *
+   * `autoRefreshEvents` drops `visibilitychange` from the list. A refresh
+   * re-measures every trigger on the page, and tabbing away and back is not a
+   * layout change; the three that remain are.
+   */
+  ScrollTrigger.config({
+    ignoreMobileResize: true,
+    limitCallbacks: true,
+    autoRefreshEvents: "DOMContentLoaded,load,resize",
+  });
+
+  /*
+   * `force3D` is deliberately left at GSAP's default of `"auto"`, which
+   * promotes an element for the duration of a tween and drops it afterwards.
+   * Forcing it on globally was tried and removed: it keeps a compositor layer
+   * alive for every element that has ever animated, and on the heavier pages
+   * here that is hundreds of them. The machine this was measured on was too
+   * noisy to prove it either way, and an unverifiable change that trades main-
+   * thread work for GPU memory is not one to keep on a guess.
+   */
+  gsap.config({ nullTargetWarn: false });
   registered = true;
 }
 

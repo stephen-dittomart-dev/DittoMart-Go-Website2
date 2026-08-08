@@ -4,7 +4,7 @@ export const site = {
   legalName: "DittoMart Technologies",
   tagline: "We are on your route",
   description:
-    "DittoMart Go connects your business to nine delivery networks through one API — Adloggs, Shiprocket Quick, Qwqer, Flash by Shadowfax, Quicka, Pidge, Ek Bharath, Pro Routing and ONDC carrying Ola and Rapido. Routing, tracking, wallet, billing and settlement handled automatically.",
+    "DittoMart Go connects your business to nine delivery networks through one API — ONDC carrying Ola and Rapido, plus Adloggs, Shiprocket Quick, Qwqer, Flash by Shadowfax, Quicka, Pidge, Ek Bharath and Pro Routing. Routing, tracking, wallet, billing and settlement handled automatically.",
   url: "https://go.dittomart.in",
   locale: "en_IN",
   city: "Chennai",
