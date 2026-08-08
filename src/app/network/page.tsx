@@ -28,13 +28,13 @@ export default function NetworkPage() {
           climbs over the top.
 
           `HoldToEnd` pins a band's last screenful and gives it exactly one
-          viewport of hold; `lg:-mt-[100vh]` on the next band is that same
+          viewport of hold; `-mt-[100vh]` on the next band is that same
           viewport, so the hold and the climb are one number and cannot drift
           apart. See `hold-to-end.tsx` for why `bottom: 0` cannot do this.
 
           Nothing inside any band is touched. No z-index either: every band is
           positioned, so a later one paints over an earlier one in DOM order,
-          which is the order they arrive in. lg-only.
+          which is the order they arrive in. Every width.
           ------------------------------------------------------------------ */}
 
       {/* 01 · ink — the hero, held while the network story climbs over it */}
@@ -67,7 +67,7 @@ export default function NetworkPage() {
         scene="sand"
         padded={false}
         sweep="none"
-        className="lg:-mt-[100vh]"
+        className="-mt-[100vh]"
       >
         <NetworkStory />
       </Scene>
@@ -84,7 +84,7 @@ export default function NetworkPage() {
         scene="teal"
         padded={false}
         sweep="none"
-        className="lg:-mt-[100vh]"
+        className="-mt-[100vh]"
       >
         <AgencyChapter />
       </Scene>
@@ -101,7 +101,7 @@ export default function NetworkPage() {
         scene="slate"
         padded={false}
         sweep="none"
-        className="lg:-mt-[100vh]"
+        className="-mt-[100vh]"
       >
         <NetworkGrid />
       </Scene>

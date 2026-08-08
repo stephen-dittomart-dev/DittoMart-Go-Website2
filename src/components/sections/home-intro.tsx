@@ -70,6 +70,11 @@ export function HomeIntro({ onDone }: { onDone: () => void }) {
         rotate: () => gsap.utils.random(-24, 24),
       });
 
+      /* Everything is off-stage now, so the lockup can be uncovered. Still
+         inside the layout effect, so this lands before the first paint after
+         hydration and the assembled markup is never seen. */
+      gsap.set(q("[data-intro-stage]"), { opacity: 1 });
+
       tl
         // the mark rides in
         .to(glow, {
@@ -142,23 +147,73 @@ export function HomeIntro({ onDone }: { onDone: () => void }) {
   return (
     <div
       ref={root}
+      /*
+        Opaque in the server-rendered markup, not transparent.
+
+        It used to ship at `opacity: 0` and be switched on by the `gsap.set`
+        below — but that set cannot run until React has hydrated, and the
+        browser paints long before that. So the first thing on screen was the
+        hero, sitting there uncovered for as long as hydration took, and the
+        intro dropped over it afterwards. The animation is meant to be the
+        first thing you see; it was the second.
+
+        Opaque from the first byte fixes it, and costs nothing: the element is
+        already in the SSR output, this only changes what it looks like before
+        JavaScript arrives.
+      */
       className="fixed inset-0 z-[9998] flex items-center justify-center overflow-hidden bg-bg"
-      style={{ opacity: 0 }}
+      style={{ opacity: 1 }}
       role="presentation"
+      data-home-intro
     >
+      {/*
+        The one thing an opaque pre-hydration overlay must not do is stay.
+        With scripting off nothing would ever take it down, so this is the
+        only case that needs a way out that does not involve JavaScript.
+      */}
+      <noscript
+        dangerouslySetInnerHTML={{
+          __html: "<style>[data-home-intro]{display:none!important}</style>",
+        }}
+      />
+
       {/* warm wash behind the lockup */}
       <div
         data-intro-glow
         aria-hidden
         className="pointer-events-none absolute size-[130vmin] rounded-full blur-[130px]"
         style={{
+          opacity: 0,
           background:
             "radial-gradient(closest-side, color-mix(in oklab, var(--color-ember-500) 34%, transparent), transparent 72%)",
         }}
       />
       <div aria-hidden className="bg-grid absolute inset-0 opacity-50 mask-radial-fade" />
 
-      <div className="relative flex items-center gap-6 px-6 sm:gap-10 md:gap-14">
+      {/*
+        Hidden until everything inside it has been parked off-stage.
+
+        The overlay above is now opaque before hydration, which uncovers a
+        second version of the same problem: the lockup's own markup is the
+        *finished* lockup — mark in place, letters standing, rule drawn — and
+        it is only pulled apart by the `gsap.set` calls on mount. Left visible
+        it would show fully assembled for a frame and then fly apart, which
+        gives the whole trick away.
+
+        One opacity on the container rather than a seed on each piece, because
+        the pieces are not uniform: the letters and the mark animate their own
+        opacity and could be seeded individually, but the rule only animates
+        `scaleY` — seed that one at zero opacity and it would never come back.
+        Hiding the container sidesteps having to be right about each of them.
+
+        Turned on inside the same layout effect that parks everything, so it
+        happens before the browser paints and there is no frame in between.
+      */}
+      <div
+        data-intro-stage
+        style={{ opacity: 0 }}
+        className="relative flex items-center gap-6 px-6 sm:gap-10 md:gap-14"
+      >
         {/* the mark */}
         <div
           data-intro-mark

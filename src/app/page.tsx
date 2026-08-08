@@ -104,7 +104,7 @@ export default function HomePage() {
               last screenful and gives it exactly one viewport of hold. See
               that file for why `bottom: 0` cannot do this.
 
-            · `lg:-mt-[100vh]` — on the band doing the climbing. One viewport,
+            · `-mt-[100vh]` — on the band doing the climbing. One viewport,
               the same viewport the hold lasts for.
 
           The burst needs neither: it is 580vh of runway around a `sticky top-0`
@@ -115,12 +115,13 @@ export default function HomePage() {
           arrive in. The `z-30` that used to sit on the film band was not only
           unnecessary, it outranked the ecosystem that now climbs over it.
 
-          All of it is lg-only. Below that every band flows as before.
+          Every width. This used to be lg-only, which left phones and tablets
+          with a plain stack of bands and none of the overlap.
           ------------------------------------------------------------------ */}
 
       {/* 02 · sand — the film. Climbs over the hero, then holds while the
           ecosystem climbs over it. */}
-      <HoldToEnd className="lg:-mt-[100vh]">
+      <HoldToEnd className="-mt-[100vh]">
         <Scene scene="sand" id="film" padded={false} sweep="none">
           <Film />
         </Scene>
@@ -132,7 +133,7 @@ export default function HomePage() {
         id="ecosystem"
         padded={false}
         sweep="none"
-        className="lg:-mt-[100vh]"
+        className="-mt-[100vh]"
       >
         <Ecosystem />
       </Scene>
@@ -142,7 +143,7 @@ export default function HomePage() {
 
       {/* 05 · bone — the routing fork.
 
-          No climb here, deliberately. It used to carry `lg:-mt-[100vh]` and
+          No climb here, deliberately. It used to carry `-mt-[100vh]` and
           rise over the burst's last screenful like every other boundary on
           this page; that overlap is gone. The burst simply scrolls up and out
           under its own runway and the fork follows it, the two moving together
@@ -160,7 +161,7 @@ export default function HomePage() {
       </HoldToEnd>
 
       {/* 06 · teal — the wallet gate and the moat, climbing over the fork */}
-      <div className="lg:-mt-[100vh]">
+      <div className="-mt-[100vh]">
         <MoatBand />
       </div>
 

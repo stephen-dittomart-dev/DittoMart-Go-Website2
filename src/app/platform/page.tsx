@@ -45,14 +45,14 @@ export default function PlatformPage() {
           Seven overlap boundaries — the longest run on the site.
 
           `HoldToEnd` pins a band's last screenful and gives it one viewport of
-          hold, during which it recedes and dims; `lg:-mt-[100vh]` on the next
+          hold, during which it recedes and dims; `-mt-[100vh]` on the next
           band is that same viewport. Four bands here are both — held for the
           band after them and climbing over the band before them — which is
           simply `HoldToEnd` carrying the negative margin on its wrapper.
 
           Nothing inside any band is touched. No z-index: every band is
           positioned, so a later one paints over an earlier one in DOM order.
-          lg-only.
+          Every width.
 
           The chain runs 1→2, then 5→6→7→8, then 11→12. Bands 3, 4, 9 and 10
           flow normally — the console and the film are where the page should
@@ -86,7 +86,7 @@ export default function PlatformPage() {
         scene="sand"
         padded={false}
         sweep="none"
-        className="lg:-mt-[100vh]"
+        className="-mt-[100vh]"
       >
         <PlatformArchitecture />
       </Scene>
@@ -112,7 +112,7 @@ export default function PlatformPage() {
 
       {/* 06 · ink — rails and sequence. Climbs over the chapters, held for
           the rider band. */}
-      <HoldToEnd className="lg:-mt-[100vh]">
+      <HoldToEnd className="-mt-[100vh]">
         <Scene scene="ink" padded={false} sweep="none">
           <PlatformRails />
           <PlatformSequence />
@@ -120,7 +120,7 @@ export default function PlatformPage() {
       </HoldToEnd>
 
       {/* 07 · olive — the rider. Climbs over the rails, held for analytics. */}
-      <HoldToEnd className="lg:-mt-[100vh]">
+      <HoldToEnd className="-mt-[100vh]">
         <Scene scene="olive" padded={false} sweep="none">
           <RiderChapter />
         </Scene>
@@ -131,7 +131,7 @@ export default function PlatformPage() {
         scene="crimson"
         padded={false}
         sweep="none"
-        className="lg:-mt-[100vh]"
+        className="-mt-[100vh]"
       >
         <AnalyticsChapter />
       </Scene>
@@ -173,7 +173,7 @@ export default function PlatformPage() {
         scene="ink"
         padded={false}
         sweep="none"
-        className="lg:-mt-[100vh]"
+        className="-mt-[100vh]"
       >
         <CTA
           title="See it run against your own volumes"

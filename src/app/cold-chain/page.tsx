@@ -44,10 +44,10 @@ export default function ColdChainPage() {
           Two overlap boundaries: 2 → 3 and 4 → 5.
 
           `HoldToEnd` pins a band's last screenful and gives it one viewport of
-          hold, during which it recedes and dims; `lg:-mt-[100vh]` on the next
+          hold, during which it recedes and dims; `-mt-[100vh]` on the next
           band is that same viewport. Nothing inside any band is touched, and
           no z-index is involved — every band is positioned, so a later one
-          paints over an earlier one in DOM order. lg-only.
+          paints over an earlier one in DOM order. Every width.
 
           A band that turns out to fit the frame opts itself out inside
           `HoldToEnd`, so the two chapter bands here are safe to wrap whether
@@ -66,7 +66,7 @@ export default function ColdChainPage() {
         scene="olive"
         padded={false}
         sweep="none"
-        className="lg:-mt-[100vh]"
+        className="-mt-[100vh]"
       >
         <ColdChainChapter />
       </Scene>
@@ -98,7 +98,7 @@ export default function ColdChainPage() {
         scene="sand"
         padded={false}
         sweep="none"
-        className="lg:-mt-[100vh]"
+        className="-mt-[100vh]"
       >
         <ColdChainProtocol />
       </Scene>

@@ -129,12 +129,44 @@ const VS_PARK = 0.16;
  * entire bike on its way past instead of disappearing into it.
  */
 const VS_SLOT = 0.58;
+/**
+ * How far below his resting place the rider begins, as a fraction of the frame.
+ *
+ * He is inside the sheet, so the sheet's rise carries him most of the way; this
+ * is only the trailing gap that makes him arrive a beat behind its top edge
+ * rather than with it. A whole viewport here — which is what a start below the
+ * bottom of the screen amounts to — turned one arrival into two: sheet, pause,
+ * rider.
+ */
+const VS_TRAIL = 0.34;
 /** Timeline anchors for the vertical act, all within its own 0 → 1. */
-const VS_RIDE_IN = 0.05;
-const VS_RIDE_DUR = 0.23;
-const VS_TRAIN_IN = 0.15;
-/** Where the closing line lands dead centre and the rider sets off again. */
-const VS_TAIL_AT = 0.84;
+const VS_RIDE_IN = 0.02;
+const VS_RIDE_DUR = 0.16;
+/**
+ * The train follows him in, close behind.
+ *
+ * It used to wait until well after the sheet had landed. The sheet, the rider
+ * and the first card are one procession — each a short gap behind the last —
+ * so the reader sees a thing arriving rather than three things taking turns.
+ */
+const VS_TRAIN_IN = 0.08;
+/**
+ * Where the closing line lands dead centre and the rider sets off again.
+ *
+ * Pulled back from 0.84 so that what follows it has room: he takes until 0.90
+ * to clear the right edge, which leaves the last tenth of the act as the line
+ * alone on a still screen.
+ */
+const VS_TAIL_AT = 0.78;
+/**
+ * How long the act runs, in viewport heights.
+ *
+ * Written down rather than left as "whatever is left of the runway", because
+ * the runway is no longer only the act — the band after it needs a viewport of
+ * its own to climb through, and that viewport has to come *after* this ends.
+ * See the runway below, where the two are added up.
+ */
+const VS_LEN_VH = 2;
 
 /**
  * Home hero.
@@ -631,7 +663,14 @@ export function Hero({ ready = true }: { ready?: boolean }) {
           gsap.set(cards, { clearProps: "clipPath,transform" });
 
           const H = window.innerHeight;
+          const W = window.innerWidth;
           const riderH = rider.offsetHeight;
+          /* The rider's own box is the full width of the stage — he is a
+             centred flex item inside it — so how far he has to travel to clear
+             the right edge is measured from the artwork, not from the wrapper
+             that holds it. */
+          const riderW =
+            (rider.firstElementChild as HTMLElement | null)?.offsetWidth ?? 0;
           const parked = H * VS_PARK;
           /* The mouth of the pannier. The art is mirrored and shot from the
              side, so the box sits a little under half way down him — which is
@@ -647,7 +686,21 @@ export function Hero({ ready = true }: { ready?: boolean }) {
                  sheet comes up over a mesh that is still zooming, which is
                  what the desktop act does too. */
               start: () => "top top-=" + Math.round(H * VS_START_VH),
-              end: "bottom bottom",
+              /* Explicitly the act's own length, not the end of the runway.
+              
+                 It was `bottom bottom`, which put the act's last frame exactly
+                 where the sticky stage releases — and the film band is pulled
+                 up a viewport from there, so it began climbing a whole
+                 viewport *before* that. The closing line was still arriving and
+                 the rider was still on screen when the next band started
+                 sliding over them.
+              
+                 Ending here instead leaves the climb its own viewport, after
+                 this. Desktop is a different case and deliberately so: there
+                 the film's climb is timed to coincide with the line landing,
+                 which is the effect that act was built around. */
+              end: () =>
+                "top top-=" + Math.round(H * (VS_START_VH + VS_LEN_VH)),
               scrub: 0.5,
               invalidateOnRefresh: true,
             },
@@ -661,10 +714,23 @@ export function Hero({ ready = true }: { ready?: boolean }) {
             0
           );
 
-          // the rider comes up through the bottom edge and parks near the top
+          /* The rider rides in *with* the sheet, a short way behind its top
+             edge — not after it has finished arriving.
+
+             He used to start below the bottom of the screen and travel a whole
+             viewport, which meant the sheet landed, sat empty for a beat, and
+             then he appeared. Two events where there should be one. He lives
+             inside the sheet, so the sheet's own rise already carries him up;
+             all he needs of his own is the last part of the distance, and it
+             is timed to overlap the rise rather than follow it.
+
+             `VS_TRAIL` is that gap, as a fraction of the frame — how far below
+             his resting place he starts, measured from a sheet that is already
+             moving under him. Small, because the point is that he is part of
+             the same arrival. */
           tl.fromTo(
             rider,
-            { y: H + riderH },
+            { y: parked + H * VS_TRAIL },
             { y: parked, ease: "power2.out", duration: VS_RIDE_DUR },
             VS_RIDE_IN
           );
@@ -729,10 +795,28 @@ export function Hero({ ready = true }: { ready?: boolean }) {
           /* He sets off again on the frame the closing line lands, and this is
              the only tween that touches him after he parks — which is what
              makes him genuinely stationary in between rather than animated to
-             hold still. */
+             hold still.
+
+             Out to the right, not up. He arrived facing that way and he has
+             spent the whole act being loaded; riding off is what a rider who
+             has finished loading does. Lifting him straight up was the cheap
+             mirror of the column's own direction — every other thing on this
+             screen travels vertically, so he did too, and the one object that
+             is supposed to be a vehicle moved like a lift.
+
+             It is also what the desktop act does: there he leaves through the
+             right edge as well. The two versions now end the same way, which
+             is worth more than either of them ending tidily on its own.
+
+             `y` is untouched, so he keeps his parked height and leaves along
+             the road he is drawn standing on. */
           tl.to(
             rider,
-            { y: -(riderH + H * 0.3), ease: "power1.in", duration: 0.12 },
+            {
+              x: W / 2 + riderW / 2 + 32,
+              ease: "power1.in",
+              duration: 0.12,
+            },
             VS_TAIL_AT
           );
 
@@ -781,18 +865,42 @@ export function Hero({ ready = true }: { ready?: boolean }) {
         Both widths now carry two acts, so both are long. Desktop runs the
         exit and then the sideways vision; below `lg` it is the same exit —
         capped to the 168vh it always had, see the trigger above — with the
-        vertical one starting 42vh in and overlapping it.
+        vertical one starting 30vh in and overlapping it.
 
-        330vh is not a chosen number. The vertical act needs 200vh to get four
-        cards and a closing line up the screen one at a time, it now begins at
-        30vh, and a sticky stage stops one viewport before its runway ends:
-        30 + 200 + 100. Shortening this by the same amount the act moved
-        earlier is what actually removes the dead scroll — starting sooner and
-        leaving the runway alone would only have made the act slower.
+        430vh is not a chosen number, it is the sum of four things:
+
+          30   `VS_START_VH`, before the vertical act begins
+        + 200  `VS_LEN_VH`, the act itself
+        + 100  the band after this one climbing over the held stage
+        + 100  the stage releasing, which happens a viewport before the end
+        = 430
+
+        The third of those is the one that was missing. The film band carries
+        `-mt-[100vh]`, so it starts climbing a viewport before this runway
+        runs out — and while the act still owned that viewport, it climbed over
+        a closing line that had not finished arriving and a rider still on
+        screen. Giving the climb a viewport of its own is the fix, and it has
+        to be *added* rather than taken from the act, or the act just gets
+        faster to make room for it.
       */}
-      <div ref={runway} className="relative h-[330vh] lg:h-[780vh]">
+      <div ref={runway} className="relative h-[430vh] lg:h-[780vh]">
         {/* the stage — held by sticky, never re-laid-out */}
-        <div className="sticky top-0 flex h-dvh items-center overflow-hidden">
+        {/*
+          The padding is what keeps the copy out from under the bar.
+
+          The stage is a full-viewport box starting at the very top, and the
+          header is `fixed` over it — so "centred in the stage" and "centred in
+          what you can actually see" are only the same thing when the copy is
+          short enough not to reach the top. On a desktop it is. On a phone the
+          column is nearly the height of the screen, so the eyebrow sat behind
+          the bar at 22px with the bar ending at 68px.
+
+          Padding rather than a smaller height, because `absolute inset-0`
+          children — the mesh, the scrim, the white sheet — ignore padding
+          entirely. This moves the copy and nothing else, which is the whole
+          intent. Desktop keeps its existing centring untouched.
+        */}
+        <div className="sticky top-0 flex h-dvh items-center overflow-hidden pt-[76px] lg:pt-0">
           {/* ---------- artwork ---------- */}
           <div aria-hidden className="absolute inset-0 overflow-hidden">
             {/* the ink floor the graph is drawn on */}
@@ -1148,7 +1256,7 @@ export function Hero({ ready = true }: { ready?: boolean }) {
                     key={c.title}
                     data-vsm="card"
                     className={cn(
-                      "mt-[42vh] w-full max-w-[20rem] shrink-0 rounded-[22px] sm:max-w-[24rem] border border-[#241d18]/10 bg-white shadow-[0_20px_54px_-24px_rgba(36,29,24,0.42)] first:mt-0",
+                      "mt-[20vh] w-full max-w-[20rem] shrink-0 rounded-[22px] sm:max-w-[24rem] border border-[#241d18]/10 bg-white shadow-[0_20px_54px_-24px_rgba(36,29,24,0.42)] first:mt-0",
                       c.lead ? "px-7 py-7" : "px-6 py-6"
                     )}
                   >
@@ -1177,7 +1285,7 @@ export function Hero({ ready = true }: { ready?: boolean }) {
                     the screen is empty for a moment before it arrives */}
                 <div
                   data-vsm="tail"
-                  className="mt-[64vh] w-full max-w-[20rem] shrink-0 text-center sm:max-w-[24rem]"
+                  className="mt-[44vh] w-full max-w-[20rem] shrink-0 text-center sm:max-w-[24rem]"
                 >
                   <span
                     aria-hidden
@@ -1324,12 +1432,12 @@ export function Hero({ ready = true }: { ready?: boolean }) {
                    the mesh behind it instead. */
                 onReady={addLineSweep}
                 delay={0.3}
-                className="mt-8 text-[2.5rem] font-semibold leading-[1.02] tracking-[-0.04em] text-white [text-shadow:0_2px_24px_rgba(0,0,0,0.6)] sm:text-[3.4rem] lg:text-[4.4rem]"
+                className="mt-5 text-[2.15rem] font-semibold leading-[1.04] tracking-[-0.04em] text-white [text-shadow:0_2px_24px_rgba(0,0,0,0.6)] sm:mt-8 sm:text-[3.4rem] lg:text-[4.4rem]"
               />
 
               <p
                 data-hero="lede"
-                className="mt-7 max-w-2xl text-base leading-relaxed text-white/82 [text-shadow:0_1px_14px_rgba(0,0,0,0.7)] md:text-lg"
+                className="mt-5 max-w-2xl text-[0.95rem] leading-[1.6] text-white/82 [text-shadow:0_1px_14px_rgba(0,0,0,0.7)] sm:mt-7 sm:text-base sm:leading-relaxed md:text-lg"
               >
                 Adloggs, Shiprocket Quick, Flash by Shadowfax, Pidge, Quicka,
                 Qwqer, Ek Bharath, Pro Routing and ONDC — carrying Ola and
@@ -1341,7 +1449,7 @@ export function Hero({ ready = true }: { ready?: boolean }) {
 
               <div
                 data-hero="cta"
-                className="mt-9 flex flex-col gap-3 sm:flex-row"
+                className="mt-6 flex flex-col gap-2.5 sm:mt-9 sm:flex-row sm:gap-3"
               >
                 <span ref={ctaRef} className="inline-block">
                   <Button asChild size="lg" data-cursor="start">
@@ -1365,7 +1473,7 @@ export function Hero({ ready = true }: { ready?: boolean }) {
 
               <p
                 data-hero="note"
-                className="mt-7 font-mono text-2xs uppercase tracking-[0.16em] text-white/60"
+                className="mt-5 font-mono text-2xs uppercase tracking-[0.16em] text-white/60 sm:mt-7"
               >
                 Sandbox in minutes · No fleet contracts · Pay per delivery
               </p>
@@ -1374,7 +1482,11 @@ export function Hero({ ready = true }: { ready?: boolean }) {
             {/* scroll affordance */}
             <div
               data-hero="cue"
-              className="mt-14 flex items-center gap-3 md:absolute md:-bottom-2 md:left-1/2 md:mt-0 md:-translate-x-1/2"
+              /* Decoration, and the first thing to go when the frame is
+                 genuinely short — a phone in landscape, or a small handset.
+                 Losing an invitation to scroll costs nothing; losing the
+                 bottom of the call to action costs a conversion. */
+              className="mt-8 flex items-center gap-3 [@media(max-height:720px)]:hidden md:absolute md:-bottom-2 md:left-1/2 md:mt-0 md:-translate-x-1/2 md:[@media(max-height:720px)]:flex"
             >
               <span className="font-mono text-2xs uppercase tracking-[0.24em] text-white/50">
                 Scroll to route

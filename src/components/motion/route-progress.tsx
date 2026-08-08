@@ -1,13 +1,9 @@
 "use client";
 
-import { useGSAP } from "@gsap/react";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import scooty from "@/assets/scootyImg-removebg-preview.png";
-import { EASE, gsap, prefersReducedMotion, registerGsap } from "@/lib/motion";
+import { useCallback, useEffect, useRef } from "react";
+import { Logo } from "@/components/brand/logo";
 import { navigation } from "@/lib/site";
-import { cn } from "@/lib/utils";
 
 /**
  * Navigation feedback and prefetching.
@@ -22,27 +18,76 @@ import { cn } from "@/lib/utils";
  *    anything else the moment the pointer touches it. After that a click has
  *    nothing left to wait for.
  *
- * 2. The silence. Even a fast navigation feels broken with no acknowledgement.
- *    A click now raises a centred marker immediately — but only after a 140ms
- *    grace period, so genuinely instant navigations never flash a loader at
- *    you, which looks worse than no loader at all.
+ * 2. The silence. A navigation that takes half a second with no
+ *    acknowledgement does not read as slow, it reads as broken — the click
+ *    did nothing, so the reader clicks again. A click now raises the loader
+ *    below, after a grace period, so genuinely instant navigations never
+ *    flash anything and slow ones are visibly working.
+ *
+ * The grace period and the fade are **not here**. They are the transition on
+ * `[data-route-loader]` in globals.css, because a navigation is slow exactly
+ * when the main thread is busy, and anything expressed in JavaScript is
+ * therefore starved at the one moment it is needed. That file has the full
+ * account. Nothing in this component may reintroduce a timer or a tween for
+ * the loader's own timing.
  *
  * Deliberately observational: this listens to clicks, it never calls
  * preventDefault. An earlier version of the transition did, and swallowed
  * every click that landed while its animation was running.
  */
 
-const GRACE_MS = 140;
+/**
+ * The loading screen, off.
+ *
+ * It works — it is the panel with the mark, the dots and the blurred page
+ * behind it, and it appears only when a navigation takes longer than the
+ * grace period. It is switched off because a loader that shows on a routine
+ * click makes the site feel slower than it is: the reader stops seeing a site
+ * and starts seeing a thing that is loading.
+ *
+ * Kept whole rather than deleted, because the reason it exists has not gone
+ * away — a navigation that genuinely stalls should say so. Flip this to
+ * `true` and everything comes back; nothing else has to change.
+ *
+ * The prefetching in this file is NOT part of the switch. That runs either
+ * way and is what actually makes navigation quick.
+ */
+const LOADER = false;
+
+/** Only a runaway navigation needs a timer, and only to uncover the page. */
 const SAFETY_MS = 8000;
 
 export function RouteProgress() {
   const pathname = usePathname();
   const router = useRouter();
-  const [pending, setPending] = useState(false);
   const overlay = useRef<HTMLDivElement>(null);
-  const graceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safetyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prefetched = useRef(new Set<string>());
+
+  /*
+   * Show and hide are single attribute writes, deliberately.
+   *
+   * Not React state. A state flip has to be scheduled, reconciled and
+   * committed, and all three want the main thread that the navigation is
+   * already using — so the old version's timer fired late, its re-render
+   * queued behind the transition, and its 240ms tween never got to ramp. One
+   * `setAttribute` is the most that can be relied upon to happen while React
+   * is rendering the next page. Everything after it — the grace period, the
+   * fade, the dots — is CSS, which the compositor keeps running when script
+   * cannot. See `[data-route-loader]` in globals.css.
+   */
+  const hide = useCallback(() => {
+    overlay.current?.setAttribute("data-route-loader", "");
+    if (safetyTimer.current) clearTimeout(safetyTimer.current);
+  }, []);
+
+  const show = useCallback(() => {
+    if (!LOADER) return;
+    overlay.current?.setAttribute("data-route-loader", "on");
+    if (safetyTimer.current) clearTimeout(safetyTimer.current);
+    // A navigation that never resolves must not leave the page covered.
+    safetyTimer.current = setTimeout(hide, SAFETY_MS);
+  }, [hide]);
 
   /* ---------- warm the top-level routes once the browser is idle -------- */
   useEffect(() => {
@@ -52,6 +97,7 @@ export function RouteProgress() {
         prefetched.current.add(item.href);
         router.prefetch(item.href);
       }
+
     };
 
     const idle = window.requestIdleCallback;
@@ -97,94 +143,97 @@ export function RouteProgress() {
     };
 
     const onClick = (e: MouseEvent) => {
-      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0)
-        return;
+      /* No `defaultPrevented` check, and the listener below is in the capture
+         phase — the two go together.
+
+         Next's `<Link>` calls `preventDefault()` on the click so it can route
+         on the client instead of letting the browser load the page. Its
+         handler sits on the anchor, so in the bubble phase it has always run
+         by the time a document-level listener sees the event: every internal
+         navigation arrived here already marked as prevented and was skipped.
+         That is why this loader never appeared once. Capturing puts us ahead
+         of the anchor, where the flag means what it looks like it means. */
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
       const target = internal(
         (e.target as HTMLElement)?.closest?.<HTMLAnchorElement>("a[href]") ?? null
       );
       if (!target) return;
 
-      // Never block the navigation — just start showing feedback for it.
-      graceTimer.current = setTimeout(() => setPending(true), GRACE_MS);
-      safetyTimer.current = setTimeout(() => setPending(false), SAFETY_MS);
+      /* Never block the navigation — just start showing feedback for it.
+         The grace period is the CSS transition-delay, not a timer here, so a
+         navigation that lands inside it never flashes anything. */
+      show();
     };
 
     document.addEventListener("pointerover", onOver, { passive: true });
     document.addEventListener("focusin", onOver as unknown as EventListener);
-    document.addEventListener("click", onClick);
+    document.addEventListener("click", onClick, true);
 
     return () => {
       document.removeEventListener("pointerover", onOver);
       document.removeEventListener("focusin", onOver as unknown as EventListener);
-      document.removeEventListener("click", onClick);
+      document.removeEventListener("click", onClick, true);
     };
-  }, [router]);
+  }, [router, show]);
 
   /* ---------- the destination arrived ---------------------------------- */
+  /* The destination arrived. Also bound to `pageshow`, because a back or
+     forward navigation restored from the bfcache never runs the click path
+     and would otherwise come back with the loader still up. */
   useEffect(() => {
-    if (graceTimer.current) clearTimeout(graceTimer.current);
-    if (safetyTimer.current) clearTimeout(safetyTimer.current);
-    setPending(false);
-  }, [pathname]);
+    hide();
+    window.addEventListener("pageshow", hide);
+    return () => window.removeEventListener("pageshow", hide);
+  }, [pathname, hide]);
 
-  useGSAP(
-    () => {
-      const el = overlay.current;
-      if (!el) return;
-      registerGsap();
-
-      if (prefersReducedMotion()) {
-        gsap.set(el, { autoAlpha: pending ? 1 : 0 });
-        return;
-      }
-
-      gsap.to(el, {
-        autoAlpha: pending ? 1 : 0,
-        duration: pending ? 0.24 : 0.3,
-        ease: EASE.out3,
-      });
-    },
-    { dependencies: [pending] }
-  );
+  if (!LOADER) return null;
 
   return (
     <div
       ref={overlay}
-      aria-hidden={!pending}
+      data-route-loader=""
       role="status"
       aria-live="polite"
-      className={cn(
-        "pointer-events-none fixed inset-0 z-[9997] flex items-center justify-center",
-        "bg-[color-mix(in_oklab,var(--bg)_86%,transparent)] backdrop-blur-sm"
-      )}
-      style={{ opacity: 0, visibility: "hidden" }}
+      className={[
+        "fixed inset-0 z-[9997] flex items-center justify-center",
+        // The blur is the point: the page you are leaving goes soft behind the
+        // panel, so the wait reads as the site working rather than as a screen
+        // that has stopped.
+        "bg-[color-mix(in_oklab,var(--bg)_72%,transparent)]",
+        "backdrop-blur-md backdrop-saturate-150",
+      ].join(" ")}
     >
-      <div className="flex flex-col items-center gap-5">
-        <div className="relative size-28 sm:size-32">
-          {/* the mark keeps riding while the route resolves */}
-          <Image
-            src={scooty}
-            alt=""
-            fill
-            sizes="128px"
-            className="animate-float object-contain mix-blend-multiply"
+      <div className="flex flex-col items-center gap-6">
+        <div className="relative flex items-center justify-center">
+          {/* a soft breath behind the mark, purely so the panel is never
+              completely static while it waits */}
+          <span
+            aria-hidden
+            className="absolute size-32 rounded-full blur-2xl"
+            style={{
+              background:
+                "radial-gradient(closest-side, color-mix(in oklab, var(--color-ember-500) 42%, transparent), transparent 72%)",
+              animation: "dm-loading-pulse 2.4s ease-in-out infinite",
+            }}
           />
+          <Logo className="relative scale-125" />
         </div>
 
-        <div className="flex flex-col items-center gap-2.5">
-          <span className="font-mono text-[11px] uppercase tracking-[0.34em] text-fg-muted">
-            Routing
-            <span className="ml-0.5 inline-flex">
-              <span className="animate-breathe">.</span>
-              <span className="animate-breathe [animation-delay:200ms]">.</span>
-              <span className="animate-breathe [animation-delay:400ms]">.</span>
-            </span>
+        <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.3em] text-fg-muted">
+          Loading
+          <span aria-hidden className="flex items-end gap-[3px] pb-[2px]">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="block size-[3px] rounded-full bg-primary"
+                style={{
+                  animation: "dm-loading-dot 1.05s ease-in-out infinite",
+                  animationDelay: `${i * 0.16}s`,
+                }}
+              />
+            ))}
           </span>
-
-          <span className="h-px w-24 overflow-hidden bg-line">
-            <span className="block h-full w-1/3 animate-[dm-route-run_1.1s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-ember-500 to-transparent" />
-          </span>
-        </div>
+        </span>
       </div>
     </div>
   );

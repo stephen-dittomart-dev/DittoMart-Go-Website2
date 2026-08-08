@@ -655,6 +655,126 @@ html.theme-dark {
   }
 }
 
+/* --------------------------------------------------------------------------
+   The route loader.
+
+   All of its behaviour lives here rather than in JavaScript, and that is the
+   entire reason it works.
+
+   The previous version was a React state flip on a 140ms `setTimeout`, faded
+   in with a GSAP tween. Every link in that chain needs the main thread — and
+   the main thread is precisely what is unavailable during a navigation, since
+   what makes a navigation slow is React rendering the next page on it. So the
+   timer fired late, the re-render queued behind the transition, and the tween
+   had a 240ms ramp; by the time any of it could have been seen the route had
+   already arrived and the loader was told to hide again. It never once
+   painted. The reader clicked and the page simply froze.
+
+   Here the grace period is a `transition-delay` and the motion is a CSS
+   animation on `opacity` and `transform` only. Both are run by the compositor,
+   which keeps its own clock and does not stop when JavaScript is stuck. The
+   loader therefore appears on time and its dots keep moving throughout, no
+   matter how busy the page is behind it.
+
+   Showing it is one attribute write, which is all a blocked main thread has
+   time for. Instant navigations still never flash it: turn the attribute off
+   inside the 140ms delay and the opacity transition was never allowed to
+   start, so there is nothing to undo.
+   -------------------------------------------------------------------------- */
+[data-route-loader] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  /* Leaving is immediate — the page underneath is ready and waiting. */
+  transition:
+    opacity 200ms var(--ease-standard, ease),
+    visibility 0s linear 200ms;
+}
+
+[data-route-loader="on"] {
+  opacity: 1;
+  visibility: visible;
+  /* And this is what stops a double click landing on the page behind. */
+  pointer-events: auto;
+  transition:
+    opacity 260ms var(--ease-standard, ease) 140ms,
+    visibility 0s linear 140ms;
+}
+
+/* Three dots, each a third of a cycle behind the last. `opacity` and
+   `translateY` only, so this survives a blocked main thread. */
+@keyframes dm-loading-dot {
+  0%,
+  70%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
+/* A slow breath under the mark, so the panel is never completely still. */
+@keyframes dm-loading-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-route-loader] * {
+    animation: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   The hero column on a genuinely short frame.
+
+   Below `lg` the column has to clear a fixed header, which costs it 76px it
+   never had to find before. Everywhere from a 360×800 handset upwards the
+   tightened rhythm on the elements themselves absorbs that. A 640px-tall
+   frame — a small or old handset, or a phone in a split view — does not have
+   it to give, and the eyebrow ended up behind the bar again.
+
+   So this trims further, and only there. Unlayered on purpose: these
+   declarations have to beat the Tailwind utilities on the same elements, and
+   unlayered CSS outranks anything in `@layer utilities` regardless of
+   specificity. That is the mechanism, used deliberately rather than stumbled
+   into — nothing here is a `!important`.
+
+   The note goes rather than shrinks. Three short reassurances are the least
+   load-bearing thing in the column, and cutting them whole is better than
+   keeping them at a size nobody can read.
+   -------------------------------------------------------------------------- */
+@media (max-height: 700px) and (max-width: 1023px) {
+  [data-hero="copy"] h1 {
+    margin-top: 0.75rem;
+    font-size: 1.8rem;
+  }
+
+  [data-hero="lede"] {
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  [data-hero="cta"] {
+    margin-top: 1rem;
+  }
+
+  [data-hero="note"] {
+    display: none;
+  }
+}
+
 /* the indeterminate bar under the routing marker */
 @keyframes dm-route-run {
   0% {

@@ -56,9 +56,33 @@ import { gsap, prefersReducedMotion, registerGsap, ScrollTrigger } from "@/lib/m
  * is short is the case to avoid — the height itself is fine.
  * ---------------------------------------------------------------------------
  *
- * Desktop only. Below `lg` the stage is not sticky, the spacer is not
- * rendered, and no tween is created — the band flows exactly as it did before.
+ * Every width. This was desktop-only, which meant the whole overlap language
+ * of the site — bands holding while the next one climbs over them — was absent
+ * on a phone and a tablet. The hold and the climb are one viewport either way;
+ * the only thing that changes with width is how many of these bands are
+ * shorter than the frame, and the clamp in `top` already handles that.
  */
+/**
+ * One refresh per frame, for the whole page.
+ *
+ * `ScrollTrigger.refresh()` is global — it re-measures every trigger that
+ * exists, not just this band's — so N instances asking for one is N times the
+ * work for exactly the same result. Coalescing them into a single call on the
+ * next frame makes a page with five holds cost the same as a page with one.
+ *
+ * Module scope on purpose: the whole point is that separate instances, which
+ * know nothing about each other, share it.
+ */
+let refreshQueued = false;
+function queueRefresh() {
+  if (refreshQueued) return;
+  refreshQueued = true;
+  requestAnimationFrame(() => {
+    refreshQueued = false;
+    ScrollTrigger.refresh();
+  });
+}
+
 export function HoldToEnd({
   children,
   className,
@@ -84,14 +108,22 @@ export function HoldToEnd({
         const h = el.offsetHeight;
         el.style.setProperty("--band-h", `${h}px`);
 
-        /* Held on every desktop width. The clamp in `top` already picks the
-           right pin for the height — negative for a band taller than the
-           frame so it stops on its last screenful, zero for one that fits so
-           it stops the moment it is fully on screen. */
-        const holds = !prefersReducedMotion() && window.innerWidth >= 1024;
+        /* Held at every width, not just desktop.
+        
+           This was `>= 1024` and the overlap simply did not exist on a phone
+           or a tablet — the bands stacked and scrolled past one another like
+           any ordinary page, which is most of what made those widths feel like
+           a different, plainer site.
+        
+           Nothing about the mechanism needed the restriction. The clamp in
+           `top` already picks the right pin for any height: negative for a
+           band taller than the frame, so it stops on its last screenful; zero
+           for one that fits, so it stops the moment it is fully on screen.
+           Narrow screens simply produce more of the second kind. */
+        const holds = !prefersReducedMotion();
 
-        // Inline `static` beats the `lg:sticky` class; clearing it hands
-        // control back to the class, which is itself already lg-gated.
+        // Inline `static` beats the `sticky` class; clearing it hands control
+        // back to the class.
         el.style.position = holds ? "" : "static";
 
         if (holds && !tween) {
@@ -183,25 +215,45 @@ export function HoldToEnd({
          that change the height as they decode, and a wrong height means the
          band stops at the wrong line. Writing a custom property back to the
          observed element cannot loop — `top` does not affect height. */
-      let lastH = 0;
+      /* `-1`, not `0`, and the distinction is the whole point.
+       *
+       * A `ResizeObserver` fires once immediately when you observe something,
+       * reporting the size it already has. That is a baseline, not a change —
+       * but seeded at `0` it looked like one, so every instance on the page
+       * called a global `ScrollTrigger.refresh()` during mount. A page with
+       * five of these ran five full refreshes, each re-measuring every trigger
+       * on the page with `getBoundingClientRect`, on the frame the reader was
+       * waiting to see.
+       *
+       * That was most of the delay between clicking a nav link and the route
+       * changing, and it scaled exactly with how many holds a page had:
+       * contact has none and was the quickest, platform has five and was the
+       * slowest. Nothing was being recalculated that was wrong — the work was
+       * simply redundant, and it was on the critical path.
+       */
+      let lastH = -1;
       const ro = new ResizeObserver(() => {
         measure();
-        /* Both ends are now functions of the band's height, so a height that
+        /* Both ends are functions of the band's height, so a height that
            settles after decode has to re-evaluate them — otherwise the hold is
            computed against the height the band had before its images arrived.
-           Guarded on a real change, because the observer fires for every
-           layout pass and `refresh` is not free. */
+           Only a genuine change counts: the observer fires for every layout
+           pass, and a refresh is one of the most expensive things that can be
+           asked of this page. */
         const h = el.offsetHeight;
-        if (h !== lastH) {
+        if (lastH === -1) {
           lastH = h;
-          ScrollTrigger.refresh();
+          return;
         }
+        if (h === lastH) return;
+        lastH = h;
+        queueRefresh();
       });
       ro.observe(el);
 
       const onResize = () => {
         measure();
-        ScrollTrigger.refresh();
+        queueRefresh();
       };
       window.addEventListener("resize", onResize);
 
@@ -219,12 +271,12 @@ export function HoldToEnd({
     <div ref={root} className={className}>
       <div
         ref={stage}
-        className="lg:sticky"
+        className="sticky"
         style={{ top: "min(0px, calc(100vh - var(--band-h, 0px)))" }}
       >
         {children}
       </div>
-      <div ref={spacer} aria-hidden className="hidden lg:block lg:h-[100vh]" />
+      <div ref={spacer} aria-hidden className="h-[100vh]" />
     </div>
   );
 }

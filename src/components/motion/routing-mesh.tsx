@@ -160,6 +160,22 @@ const routeCycle = (r: RouteSpec) =>
   routeLit(r) + ROUTE_HOLD + ROUTE_FADE + ROUTE_GAP;
 
 /**
+ * Below this the cloud takes the middle of the frame.
+ *
+ * The origin the caller gives is off to one side because on a desktop the
+ * cloud shares the frame with the copy column and has to keep out of its way.
+ * Below `lg` there is no column beside it — the copy is above it, across the
+ * full width — so an off-centre cloud is simply off centre, which is what it
+ * looked like.
+ *
+ * Both axes, not just the horizontal one, because the hero's exit zooms this
+ * canvas from its own middle. Centre the cloud in the frame and the thing that
+ * grows is the thing you were looking at; leave it anywhere else and the zoom
+ * pushes it further off as it goes.
+ */
+const CENTRE_BELOW = 1024;
+
+/**
  * Below this the routes are dropped and only the ambient cloud remains.
  * Labelled stops need horizontal room; squeezed onto a phone they overlap
  * each other and the headline, which is worse than not being there.
@@ -303,6 +319,12 @@ export function RoutingMesh({
     let width = 0;
     let height = 0;
 
+    /* Read through a function rather than captured once, so a rotation or a
+       window drag across the breakpoint moves the cloud without the canvas
+       having to be rebuilt. */
+    const ox = () => (width < CENTRE_BELOW ? 0.5 : originX);
+    const oy = () => (width < CENTRE_BELOW ? 0.5 : originY);
+
     const resize = () => {
       const rect = host.getBoundingClientRect();
       width = Math.max(1, Math.round(rect.width));
@@ -334,8 +356,8 @@ export function RoutingMesh({
         seed: Math.random() * 100,
         size: (Math.random() * 2.4 + 1) * Math.max(0.75, scale),
         color: i % 11 === 0 ? 2 : i % 3 === 0 ? 1 : 0,
-        x: width * originX,
-        y: height * originY,
+        x: width * ox(),
+        y: height * oy(),
         depth: 1,
       });
     }
@@ -618,8 +640,8 @@ export function RoutingMesh({
 
       /* Pointer parallax is held off until it lands. Dragging a cloud that is
          still flying in toward the cursor fights the arc it is already on. */
-      const cx = width * originX + arrX + driftX * ease;
-      const cy = height * originY + arrY + driftY * ease;
+      const cx = width * ox() + arrX + driftX * ease;
+      const cy = height * oy() + arrY + driftY * ease;
 
       // project
       for (let i = 0; i < n; i++) {
