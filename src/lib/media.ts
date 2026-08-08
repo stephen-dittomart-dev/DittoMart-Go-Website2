@@ -183,8 +183,17 @@ export const media = {
   } satisfies Entry,
 } as const;
 
-/** Served from /public so the browser can range-request them. */
-export const introVideo = "/media/dittomart-go-intro.mp4";
-export const operationsVideo = "/media/homeVDO.mp4";
+/**
+ * Served from /public so the browser can range-request them.
+ *
+ * The prefix is not decoration. These strings land straight on a `<video src>`,
+ * and Next rewrites only the URLs it generates itself — a raw attribute value
+ * is left alone, so under a sub-path deployment it would resolve at the domain
+ * root and 404. Empty string when the site is mounted at the root.
+ */
+const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
+export const introVideo = `${base}/media/dittomart-go-intro.mp4`;
+export const operationsVideo = `${base}/media/homeVDO.mp4`;
 
 export type MediaEntry = Entry;

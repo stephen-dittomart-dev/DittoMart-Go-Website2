@@ -1,8 +1,28 @@
 import type { NextConfig } from "next";
 
+/**
+ * Where the site is mounted on its host. Kept in one place because two things
+ * need it and Next only applies it to one of them: it rewrites the URLs it
+ * generates itself (`next/image`, `next/link`, `/_next/*`), but a plain string
+ * handed to a DOM attribute — a `<video src>` pointing into /public — passes
+ * through untouched and would resolve at the domain root. See src/lib/media.ts.
+ */
+const basePath = "/GO/website";
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+
+  /**
+   * The site is served from a sub-path on a shared host — Apache proxies
+   * `/GO/website` through to this app. Without this, every asset URL Next
+   * emits (`/_next/...`) would resolve at the domain root, where nothing is
+   * listening, and the pages would arrive unstyled.
+   */
+  basePath,
+
+  /** Exposed so client code can prefix its own /public URLs. */
+  env: { NEXT_PUBLIC_BASE_PATH: basePath },
 
   /**
    * Rewrites `import { X } from "pkg"` into a direct deep import at build
