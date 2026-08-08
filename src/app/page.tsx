@@ -122,7 +122,11 @@ export default function HomePage() {
       {/* 02 · sand — the film. Climbs over the hero, then holds while the
           ecosystem climbs over it. */}
       <HoldToEnd className="-mt-[100vh]">
-        <Scene scene="sand" id="film" padded={false} sweep="none">
+        {/* The id lives on the <Film> section itself, not here. Two elements
+            answering to `#film` meant the chapter rail and any deep link
+            resolved to whichever the browser found first — the outer band,
+            whose top is a viewport above the content it is named for. */}
+        <Scene scene="sand" padded={false} sweep="none">
           <Film />
         </Scene>
       </HoldToEnd>

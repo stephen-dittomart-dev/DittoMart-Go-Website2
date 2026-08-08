@@ -39,6 +39,12 @@ export function ContactForm() {
   const root = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [status, setStatus] = useState<"idle" | "sending" | "sent">("idle");
+  /**
+   * Set when the server has no destination configured, or the destination
+   * refused. The form then offers mail instead of claiming success — see the
+   * route handler for why that distinction is the whole point.
+   */
+  const [undeliverable, setUndeliverable] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
 
   useGSAP(
@@ -145,10 +151,55 @@ export function ContactForm() {
       });
     }
 
-    // NOTE: no submission endpoint is wired yet. Point this at your CRM,
-    // a route handler, or a form service before going live.
-    await new Promise((r) => setTimeout(r, 900));
-    setStatus("sent");
+    /* Actually send it.
+    
+       Previously this waited nine hundred milliseconds and declared success,
+       which meant every enquiry the site collected was discarded while the
+       reader was told it had arrived. Now the only thing that produces the
+       success state is the server confirming it took the message. */
+    let ok = false;
+    let deliverable = true;
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email,
+          company,
+          message,
+          phone: String(form.get("phone") ?? "").trim(),
+          interest: String(form.get("interest") ?? ""),
+          volume: String(form.get("volume") ?? ""),
+          website: String(form.get("website") ?? ""),
+        }),
+      });
+      ok = res.ok;
+      if (!ok) {
+        const data = (await res.json().catch(() => null)) as
+          | { configured?: boolean }
+          | null;
+        // no endpoint configured, or the endpoint refused it
+        deliverable = false;
+        void data;
+      }
+    } catch {
+      deliverable = false;
+    }
+
+    if (ok) {
+      setStatus("sent");
+      return;
+    }
+
+    /* It did not go. Put the form back, say so, and hand over the one route
+       that always works. Anything else here would be a lie the reader has no
+       way to detect. */
+    setUndeliverable(!deliverable);
+    setStatus("idle");
+    if (!prefersReducedMotion() && formRef.current) {
+      gsap.to(formRef.current, { opacity: 1, duration: DUR.fast, ease: EASE.out });
+    }
   }
 
   return (
@@ -197,6 +248,39 @@ export function ContactForm() {
             noValidate
             className="flex flex-col gap-6"
           >
+            {/*
+              The honeypot. Off-screen rather than `display: none`, which some
+              bots check for, and out of the tab order and the accessibility
+              tree so no reader ever meets it. A submission that fills this in
+              is accepted and dropped on the server.
+            */}
+            <input
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden
+              className="pointer-events-none absolute -left-[9999px] size-px opacity-0"
+            />
+
+            {undeliverable ? (
+              <div
+                role="alert"
+                className="rounded-xl border border-warning-border bg-warning-soft px-4 py-3 text-sm leading-relaxed text-warning"
+              >
+                We could not send that just now. Please mail it to{" "}
+                <a
+                  href={`mailto:${site.email}?subject=${encodeURIComponent(
+                    "Demo request"
+                  )}`}
+                  className="font-medium underline underline-offset-2"
+                >
+                  {site.email}
+                </a>{" "}
+                and we will pick it up from there.
+              </div>
+            ) : null}
+
             <div className="grid gap-6 sm:grid-cols-2">
               <div data-field>
                 <Field label="Name" htmlFor="name" required hint={errors.name}>
